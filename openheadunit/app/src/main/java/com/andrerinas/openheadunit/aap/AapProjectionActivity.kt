@@ -1101,6 +1101,12 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive) {
+            // The car owns the video. Showing Android Auto here would take the decoder away from it.
+            AppLog.i("AapProjectionActivity: not shown, an Auto+ Show car session owns the video")
+            finish()
+            return
+        }
         applyTurnScreenOn(intent)
         // [FIX] applyOrientationSettings() must be called AFTER super.onCreate() so that the
         // Activity window is fully initialized before we lock the orientation. Calling it before

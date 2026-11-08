@@ -392,6 +392,9 @@ class VideoDecoder(
     private var loggedFirstSoftwareFrame = false
     private var loggedFirstHardwareFrame = false
     var onFirstFrameListener: (() -> Unit)? = null
+
+    /** Set by AutoReplacer's car session: the only Surface [setSurface] will accept while non-null. */
+    @Volatile var surfaceLock: Surface? = null
         get() = synchronized(outputPublicationLock) { field }
         set(value) = synchronized(outputPublicationLock) { field = value }
     @Volatile var lastFrameRenderedMs: Long = 0L
@@ -747,6 +750,13 @@ class VideoDecoder(
     fun setSurface(surface: Surface?) {
         synchronized(this) {
             if (mSurface === surface) return
+            // AutoReplacer: while a car session owns the decoder's output (the car encoder's input),
+            // no other screen may take it, or the car picture goes blank.
+            val locked = surfaceLock
+            if (locked != null && surface !== locked) {
+                AppLog.i("setSurface ignored: the decoder output is locked to the car encoder")
+                return
+            }
 
             AppLog.i("New surface set: $surface")
             // Unconditional, not gated on a live codec: stop() is where the failure state

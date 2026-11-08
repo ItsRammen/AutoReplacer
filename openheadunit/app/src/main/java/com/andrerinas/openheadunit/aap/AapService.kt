@@ -1623,6 +1623,11 @@ class AapService : Service() {
             return false
         }
 
+        if (com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive) {
+            AppLog.i("AapService: Not raising the projection, an Auto+ Show car session owns the video")
+            return false
+        }
+
         // The user is configuring the app. SettingsActivity raises the projection itself when it
         // goes, and MainActivity.onResume does the same on the way back to the home screen.
         if (SettingsActivity.isForeground) {

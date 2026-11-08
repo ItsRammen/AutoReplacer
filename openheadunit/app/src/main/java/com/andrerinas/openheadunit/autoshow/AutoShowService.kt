@@ -35,6 +35,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     companion object {
         const val ACTION_START = "com.andrerinas.openheadunit.autoshow.START"
         const val ACTION_STOP = "com.andrerinas.openheadunit.autoshow.STOP"
+        const val ACTION_SAVE_LOG = "com.andrerinas.openheadunit.autoshow.SAVE_LOG"
+
+        /** True from the moment the car encoder owns the decoder until the session ends. */
+        @Volatile var carSessionActive = false
         private const val CHANNEL = "autoshow"
         private const val NOTIFICATION = 4201
 
@@ -69,6 +73,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { shutdown("Stopped by user"); return START_NOT_STICKY }
+        if (intent?.action == ACTION_SAVE_LOG) { saveLog(); return START_NOT_STICKY }
         val accessory: UsbAccessory? = if (Build.VERSION.SDK_INT >= 33) {
             intent?.getParcelableExtra(UsbManager.EXTRA_ACCESSORY, UsbAccessory::class.java)
         } else {
@@ -131,7 +136,12 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             val wanted = if (width >= 1280) Settings.Resolution._1280x720 else Settings.Resolution._800x480
             savedResolutionId = comp.settings.resolutionId
             comp.settings.resolutionId = wanted.id
+            comp.videoDecoder.surfaceLock = null
             comp.videoDecoder.setSurface(surface)
+            comp.videoDecoder.surfaceLock = surface
+            carSessionActive = true
+            comp.videoDecoder.onFirstFrameListener = { log("AUTOSHOW_FIRST_FRAME: Android Auto picture reached the car encoder") }
+            watchStats(surface)
             log("AUTOSHOW_PROJECTION: car ${width}x$height, Android Auto ${wanted.resName}, decoder -> encoder surface")
             startService(Intent(this, AapService::class.java)
                 .setAction(AapService.ACTION_START_SELF_MODE)
@@ -176,6 +186,60 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         comp.commManager.send(TouchEvent(SystemClock.uptimeMillis(), action, 0, listOf(Triple(0, ax, ay))))
     }
 
+    // --- diagnostics ----------------------------------------------------------
+
+    /** Every 5 s for the first minute, then every 30 s: shows where the picture stops if the car stays blank. */
+    private fun watchStats(surface: android.view.Surface) {
+        var ticks = 0
+        val task = object : Runnable {
+            override fun run() {
+                if (ended) return
+                val comp = App.provide(this@AutoShowService)
+                val d = comp.videoDecoder
+                val rendered = if (d.lastFrameRenderedMs > 0) "${(SystemClock.elapsedRealtime() - d.lastFrameRenderedMs)}ms ago" else "never"
+                log("AUTOSHOW_STATS aaConnected=${comp.commManager.isConnected} aaState=${comp.commManager.connectionState.value.javaClass.simpleName}" +
+                    " decoderOnCarSurface=${d.isCurrentSurface(surface)} lastDecodedFrame=$rendered" +
+                    " decoded=${d.videoWidth}x${d.videoHeight} carFrames=${link?.frames() ?: 0}")
+                ticks++
+                main.postDelayed(this, if (ticks < 12) 5000L else 30000L)
+            }
+        }
+        main.postDelayed(task, 5000L)
+    }
+
+    /** Saves this app's log to Downloads so it can be shared without a computer. */
+    private fun saveLog() {
+        Thread {
+            val name = "AutoReplacer-log-" + java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date()) + ".txt"
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "threadtime"))
+                val body = process.inputStream.bufferedReader().use { it.readText() }
+                val header = "AutoReplacer log ${java.util.Date()}\n" +
+                    "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) ${Build.MANUFACTURER} ${Build.MODEL}\n" +
+                    AutoShowReadiness.summary(this) + "\n\n"
+                val text = header + body
+                if (Build.VERSION.SDK_INT >= 29) {
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        ?: throw java.io.IOException("Could not create the file in Downloads")
+                    contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+                } else {
+                    val dir = getExternalFilesDir(null) ?: filesDir
+                    java.io.File(dir, name).writeText(text)
+                }
+                log("AUTOSHOW_LOG_SAVED $name bytes=${text.length}")
+                main.post { android.widget.Toast.makeText(this, "Log saved to Downloads: $name", android.widget.Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) {
+                log("AUTOSHOW_LOG_SAVE_FAILED ${e.javaClass.simpleName}: ${e.message}")
+                main.post { android.widget.Toast.makeText(this, "Could not save the log: ${e.message}", android.widget.Toast.LENGTH_LONG).show() }
+            }
+        }.start()
+    }
+
     // --- lifecycle ------------------------------------------------------------
 
     private fun shutdown(reason: String) {
@@ -185,8 +249,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try { link?.stop(reason) } catch (_: Exception) {}
         try { encoder?.stop() } catch (_: Exception) {}
         encoder = null
+        carSessionActive = false
         if (projecting) {
             val comp = App.provide(this)
+            comp.videoDecoder.surfaceLock = null
             try { comp.videoDecoder.setSurface(null) } catch (_: Exception) {}
             savedResolutionId?.let { comp.settings.resolutionId = it }
             try {
@@ -197,6 +263,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     override fun onDestroy() {
+        carSessionActive = false
+        try { App.provide(this).videoDecoder.surfaceLock = null } catch (_: Exception) {}
         carBluetooth?.stop()
         touchServer?.stop()
         if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {} }
@@ -221,6 +289,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             .setContentTitle("AutoReplacer · Auto+ Show")
             .setContentText(status)
             .setStyle(Notification.BigTextStyle().bigText(text))
+            .addAction(Notification.Action.Builder(
+                android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_aa), "Save log",
+                android.app.PendingIntent.getService(this, 1,
+                    Intent(this, AutoShowService::class.java).setAction(ACTION_SAVE_LOG),
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)).build())
             .setOngoing(true)
             .build()
     }
