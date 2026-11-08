@@ -1268,7 +1268,8 @@ class Settings(private val context: Context) {
         ConnectionKind.WIFI, ConnectionKind.NATIVE_AA -> setOf(ConnectionMode.WIFI)
         ConnectionKind.SELF_MODE -> setOf(ConnectionMode.SELF)
         ConnectionKind.ALL -> setOf(ConnectionMode.USB, ConnectionMode.WIFI)
-        ConnectionKind.UNSET -> emptySet()
+        // AutoReplacer only runs Auto+ Show (Self) mode; an unset choice defaults to it rather than showing every mode.
+        ConnectionKind.UNSET -> setOf(ConnectionMode.SELF)
     }
 
     /** Whether USB-related settings should be shown (empty selection shows everything). */

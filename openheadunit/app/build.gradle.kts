@@ -124,6 +124,8 @@ android {
         create("github") {
             dimension = "distribution"
             // Default minSdk 16 from defaultConfig is used
+            // AutoReplacer: installs next to the original Open Headunit instead of replacing it.
+            applicationIdSuffix = ".autoreplacer"
         }
     }
 
