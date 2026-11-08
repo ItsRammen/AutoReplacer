@@ -147,6 +147,10 @@ Tests cover full log retention above the old size limit, snapshot consistency, c
 
 Earlier investigation and experimental 0.1.x changes are retained in `HISTORY-through-0.1.2.md`. The later user-confirmed display on 0.1.1 established that the experimental Bluetooth exchange was not necessary for that successful run. Intermittent earlier USB stalls remain an open issue.
 
+## Status: car touch works (0.3.7, 2026-11-08)
+
+With the safety-mask reply enabled, the car sent `a=init` and then `a=ts` touches to the probe on port 8051, and all five grid targets were hit from the car screen (see `FIELD-2026-11-08.md`). The car withholds touch until the phone answers its safety state; its own helper cannot inject on Android 14+, so the probe receives the coordinates directly.
+
 ## Auto+ Show parity options (0.3.7)
 
 In the first 0.3.6 car run the car connected to the probe's port 8051 but sent no touch lines, the same as with its own helper. Two options test whether the car waits for something Auto+ Show sends:
