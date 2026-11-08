@@ -108,7 +108,7 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val serviceChannel = NotificationChannel(defaultChannel, "Headunit Service", NotificationManager.IMPORTANCE_LOW)
+            val serviceChannel = NotificationChannel(defaultChannel, "AutoReplacer service", NotificationManager.IMPORTANCE_LOW)
             serviceChannel.description = "Persistent service notification"
             serviceChannel.setShowBadge(false)
             notificationManager.createNotificationChannel(serviceChannel)
