@@ -1,10 +1,10 @@
-# AutoReplacer — Rental Display Probe 0.3.5
+# AutoReplacer — Rental Display Probe 0.3.6
 
 An Android USB accessory diagnostic for the Garmin USB Link head units used by Auto+ Show. A user has confirmed that version 0.1.1 displayed our generated video on their Taiwan Toyota Corolla Cross. This version adds a shared phone/car touch grid to test the return input path. It does not include Android Auto or Open Headunit yet.
 
 ## Install
 
-Use **Stop connection** in the old app, then install `rental-display-probe-0.3.5.apk` over the supplied earlier version. You can leave the cable attached: reopen Auto+ Show on the car if needed, then use **Retry connection** in the updated app. It uses the same signing certificate and Android package. Android 8.0+ is required. This development-signed APK may require allowing installation from the app opening it.
+Use **Stop connection** in the old app, then install `rental-display-probe-0.3.6.apk` over the supplied earlier version. You can leave the cable attached: reopen Auto+ Show on the car if needed, then use **Retry connection** in the updated app. It uses the same signing certificate and Android package. Android 8.0+ is required. This development-signed APK may require allowing installation from the app opening it.
 
 This version returns to the simpler 0.1.1 USB sequence that displayed successfully. It removes the experimental Bluetooth-name exchange and Bluetooth permissions from 0.1.2. It requests USB accessory access and uses a connected-device foreground service, a partial CPU wake lock and an optional notification permission for background streaming. It does not record the phone screen or enable USB debugging, accessibility access or root. Passive observation remains the default; an optional user-selected mode asks the car to initiate its existing ADB input setup.
 
@@ -138,7 +138,7 @@ python3 build.py
 # Pure Java tests only:
 python3 build.py --tests-only
 # Optional if adb is already configured on your computer:
-adb install -r build/rental-display-probe-0.3.5.apk
+adb install -r build/rental-display-probe-0.3.6.apk
 ```
 
 No Gradle or third-party app libraries are needed. The script compiles Java/XML, creates DEX, aligns the APK, signs it with a local development key and verifies its signature/alignment. `build/local-debug.keystore` is not a production key; rebuilding with a different key requires uninstalling the previous APK before installing that build.
@@ -146,6 +146,12 @@ No Gradle or third-party app libraries are needed. The script compiles Java/XML,
 Tests cover full log retention above the old size limit, snapshot consistency, clipboard size handling, export-path confinement, wire framing, bounded independent USB writing, normalized target mapping across multiple screen aspect ratios, guided progress, pointer/event counts, immutable snapshots and bounded trails, phase reset, stationary-state decisions, service lifecycle transitions and preserving grid state while its UI is hidden. These do not replace Android runtime or hardware tests. Version 0.3.3 has not yet been tested on a physical phone/head unit here; foreground-service startup, notification controls, sharing, background/screen-off rendering, graceful stop/retry, orientation, input delivery and actual touch mapping need the field tests above.
 
 Earlier investigation and experimental 0.1.x changes are retained in `HISTORY-through-0.1.2.md`. The later user-confirmed display on 0.1.1 established that the experimental Bluetooth exchange was not necessary for that successful run. Intermittent earlier USB stalls remain an open issue.
+
+## Car touch on port 8051 (0.3.6)
+
+The head unit delivers touch by pushing a helper (`usblinkts`) over ADB that listens on TCP 8051 and injects with the hidden `InputManager.getInstance()`. On Android 14+ that call throws in a bare `app_process`, so every touch is dropped (see `docs/usblinkts-helper.md`). On Android 14+ this version listens on `127.0.0.1:8051` from the moment the app starts. If it holds the port before the car starts its helper, the car's forwarded connection reaches the app instead: it sends the same `USBLINKTS v1.0` banner, logs every line, and maps `a=ts` touches onto the grid using the `a=init` car size (or the negotiated video size). Nothing is injected into other apps. INTERNET permission is added for the local socket only; the listener binds to loopback.
+
+Log lines: `TS8051_LISTENING`, `TS8051_BIND_FAILED`, `TS8051_CONNECTED`, `TS8051_INIT`, `CAR_TOUCH_8051`, `TS8051_RX_UNKNOWN`, `TS8051_CLOSED`. Order matters: stop any running car helper (`pkill -f UsbLinkTS` as shell, or restart the phone), open this app, then plug in. Not yet run on the car.
 
 ## Contact-data hints (0.3.5)
 

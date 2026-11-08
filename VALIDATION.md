@@ -1,3 +1,8 @@
+# Version 0.3.6 changes
+
+- `TsProtocol` (parser for the car's 8051 text protocol) is covered by `tests/TsProtocolTest.java`; all 10 suites pass and the APK builds against android-35. `CarTouchBridge` (socket listener) is compiled but not exercised on a phone or the car yet.
+- On Android 13 and older the bridge stays off so the car's own helper keeps working.
+
 # Version 0.3.5 changes (unit-tested logic only; Android code not built or run here)
 
 - `ContactProfile` and `ContactTally` are pure classes covered by `tests/ContactProfileTest.java`. The `MainActivity` logging edits were made without an Android SDK and have not been compiled against android.jar; build with `python3 build.py` before field use.

@@ -1,4 +1,17 @@
-# Parked touch test — Probe 0.3.5 (revised plan)
+# Parked touch test — Probe 0.3.6
+
+## First: port-8051 bridge test (the likely fix)
+
+1. Car unplugged. In LADB as shell (`id` shows uid 2000): `pkill -f UsbLinkTS` (or restart the phone).
+2. Open Rental Display Probe and check the log shows `TS8051_LISTENING`. If it shows `TS8051_BIND_FAILED`, repeat step 1.
+3. Plug in, choose the probe, start the car grid, wait for video.
+4. Touch only the car: targets 1 → 4 → 9 → 12 → 6, a drag. Watch the car and phone grids.
+5. Logs → Save full log. Look for `TS8051_CONNECTED`, `TS8051_INIT`, `CAR_TOUCH_8051`.
+6. Optional cross-check in LADB: `ps -A | grep app_process` and `logcat -d | grep -i usblinkts | tail -20` (the car's helper should have failed to start or never received a connection).
+
+The older plan below is still useful if the bridge sees no connection.
+
+# Earlier plan — Probe 0.3.5
 
 Goal: find out how car touch reaches the phone (USB HID, ADB injection, both, or neither) and where it stops. Park the car with the parking brake on. Do not operate the phone while driving.
 

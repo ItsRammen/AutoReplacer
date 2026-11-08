@@ -101,7 +101,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 () -> { if (gridActive) leaveGrid(); else finish(); });
-        log.add("=== Rental Display Probe 0.3.5; Android API " + Build.VERSION.SDK_INT + " ===");
+        log.add("=== Rental Display Probe 0.3.6; Android API " + Build.VERSION.SDK_INT + " ===");
         log.add("PHONE_MODEL: " + Build.MANUFACTURER + " " + Build.MODEL);
         log.add("Stationary touch diagnostic. USB path based on the displayed 0.1.1 test; no Bluetooth-name exchange.");
         log.add("Input metadata is evidence, not proof of car origin. During CAR TEST touch only the car screen.");

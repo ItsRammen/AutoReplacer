@@ -29,8 +29,9 @@ def tests():
         JAVA / "dev/rentaldisplay/probe/BoundedCommand.java",
         JAVA / "dev/rentaldisplay/probe/InputOrigin.java", JAVA / "dev/rentaldisplay/probe/AdbRequestPolicy.java",
         JAVA / "dev/rentaldisplay/probe/ContactProfile.java", JAVA / "dev/rentaldisplay/probe/ContactTally.java",
+        JAVA / "dev/rentaldisplay/probe/TsProtocol.java",
         ROOT / "tests/WireTest.java", ROOT / "tests/SerialWriterTest.java", ROOT / "tests/GridStateTest.java",ROOT / "tests/LogStoreTest.java",
-        ROOT / "tests/StreamLifecycleTest.java", ROOT / "tests/SessionWatchdogTest.java", ROOT / "tests/BoundedCommandTest.java", ROOT / "tests/InputPolicyTest.java", ROOT / "tests/ContactProfileTest.java")
+        ROOT / "tests/StreamLifecycleTest.java", ROOT / "tests/SessionWatchdogTest.java", ROOT / "tests/BoundedCommandTest.java", ROOT / "tests/InputPolicyTest.java", ROOT / "tests/ContactProfileTest.java", ROOT / "tests/TsProtocolTest.java")
     run("java", "-cp", dest, "dev.rentaldisplay.probe.WireTest")
     run("java", "-cp", dest, "dev.rentaldisplay.probe.SerialWriterTest")
     run("java", "-cp", dest, "dev.rentaldisplay.probe.GridStateTest")
@@ -40,6 +41,7 @@ def tests():
     run("java", "-cp", dest, "dev.rentaldisplay.probe.BoundedCommandTest")
     run("java", "-cp", dest, "dev.rentaldisplay.probe.InputPolicyTest")
     run("java", "-cp", dest, "dev.rentaldisplay.probe.ContactProfileTest")
+    run("java", "-cp", dest, "dev.rentaldisplay.probe.TsProtocolTest")
 
 
 def apk():
