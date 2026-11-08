@@ -25,7 +25,22 @@ object AutoShowUi {
     val hiddenSettingIds: Set<String> = setOf(
         "connectionMode", "listenForUsbDevices", "useLibusb", "bluetoothAddress",
         "resolution", "screenOrientation", "startInFullscreenMode", "videoFitMode",
-        "customInsets", "pixelAspectRatioE4", "viewMode", "forcedScale", "hudMirroring"
+        "customInsets", "pixelAspectRatioE4", "viewMode", "forcedScale", "hudMirroring",
+        // General / video: head-unit display tuning and decoder choices. The decoder must keep
+        // drawing to a Surface (the car encoder's), which the software decoder does not do.
+        "autoOptimize", "videoCodec", "narrowBandProfileCap", "forceSoftwareDecoding",
+        "softwareVideoDecoder", "debugVideoLowLatency",
+        // Audio: Self mode announces only system sounds to Android Auto, so the media/speech sink
+        // tuning below has nothing to act on. The microphone and playback-resume settings stay.
+        "enableAudioSink", "staticAudioFocus", "playbackFocusMode", "playbackFocusModeStaticHint",
+        "audioStreamSettings", "useAAudioOutput", "useAacAudio", "attachHwDspEqualizer",
+        "syncMediaSessionAaMetadata", "audioVolumeOffsets", "audioMatchingMode",
+        "audioMatchingModeHint", "audioLatencyMultiplier", "audioQueueCapacity",
+        // Debug: developer fault-injection tools and an overlay that belongs to the unused projection screen.
+        "performanceOverlay", "debugForceMemoryProfile", "debugVideoFeedHold",
+        "debugVideoFaultInjection", "debugVideoFaultRate", "debugVideoFaultBudget",
+        // Info: upstream's update check and issue flow point at the original Open Headunit project.
+        "check_for_updates", "support"
     )
 
     /** Removes the hidden sections (header and entries) and entries from a settings list. */

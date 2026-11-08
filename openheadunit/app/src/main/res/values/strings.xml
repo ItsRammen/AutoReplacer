@@ -944,7 +944,7 @@
     <!-- Info Settings -->
     <string name="category_info">Info</string>
     <string name="about">About &amp; Support</string>
-    <string name="about_description">Get more information about Open Headunit.</string>
+    <string name="about_description">Get more information about AutoReplacer.</string>
 
     <!-- Support / report a problem screen -->
     <string name="support">Report a problem</string>
@@ -993,8 +993,8 @@
     <string name="open_play_store">Open Play Store</string>
     <string name="open_github_releases">Open GitHub Releases</string>
     <string name="download_apk">Download APK</string>
-    <string name="about_title">About Open Headunit</string>
-    <string name="copyright">© 2025-%d André Rinas</string>
+    <string name="about_title">About AutoReplacer</string>
+    <string name="copyright">Built on Open Headunit, © 2025-%d André Rinas. AutoReplacer changes by its contributors.</string>
 
     <!-- Safety Disclaimer -->
     <string name="disclaimer_title">Safety &amp; Liability</string>
@@ -1004,7 +1004,7 @@
         <b>1. Focus on the Road</b><br/>
         Operating this software while driving can be distracting and dangerous. Always prioritize safe driving and adhere to all local traffic regulations. Use this application only when it is safe to do so.<br/><br/>
         <b>2. Limitation of Liability</b><br/>
-        Open Headunit is provided "as is" without warranty of any kind. The developers assume no liability for any accidents, damage to your vehicle/device, or legal consequences arising from the use of this software.<br/><br/>
+        AutoReplacer (built on Open Headunit) is provided "as is" without warranty of any kind. The developers assume no liability for any accidents, damage to your vehicle/device, or legal consequences arising from the use of this software.<br/><br/>
         <b>3. No Affiliation</b><br/>
         This project is an independent open-source initiative and is not affiliated with, endorsed by, or connected to Google LLC or the Android Auto brand.
     ]]></string>
@@ -1040,7 +1040,7 @@
     <string name="export_settings_downloads">Save to Downloads</string>
     <string name="export_settings_app_folder">Save to app backup folder</string>
     <string name="import_settings">Import settings</string>
-    <string name="import_settings_description">Restore settings from an Open Headunit backup.</string>
+    <string name="import_settings_description">Restore settings from an AutoReplacer backup.</string>
     <string name="import_settings_choose_file">Choose backup file</string>
     <string name="import_settings_downloads">Import from Downloads</string>
     <string name="import_settings_app_folder">Import from app backup folder</string>
@@ -1058,8 +1058,8 @@
     <string name="no_file_picker_title">No file picker available</string>
     <string name="no_file_picker_message">This device does not have a compatible file picker. You can use Downloads or the app backup folder instead.</string>
     <string name="no_settings_backups_title">No backups found</string>
-    <string name="no_settings_backups_message">No Open Headunit backups were found in the app backup folder. Export a backup to the app backup folder first, then import it from here.</string>
-    <string name="no_settings_backups_downloads_message">No Open Headunit backups were found in Downloads. Export a backup to Downloads first, then import it from here.</string>
+    <string name="no_settings_backups_message">No AutoReplacer backups were found in the app backup folder. Export a backup to the app backup folder first, then import it from here.</string>
+    <string name="no_settings_backups_downloads_message">No AutoReplacer backups were found in Downloads. Export a backup to Downloads first, then import it from here.</string>
     <string name="share_settings_backup">Share settings backup</string>
     <string name="logs_exported">Logs Exported</string>
     <string name="log_saved_to">Log saved to:\n%s</string>
@@ -1108,7 +1108,7 @@
     <string name="usb_disconnect_toast">Android Auto disconnected: the USB connection to the phone failed. If it happens often, try another cable, another USB port or a USB hub.</string>
     <string name="reset_usb_option">Reset USB Connection</string>
     <string name="reset_usb_timeout">USB device not found. Please check the connection.</string>
-    <string name="notification_service_running">Open Headunit is running</string>
+    <string name="notification_service_running">AutoReplacer is running</string>
     <string name="boot_loop_paused_title">Wireless start-up paused</string>
     <string name="boot_loop_paused_generic">This device restarted three times in a row shortly after Open Headunit started wireless, so wireless was left off this time. USB still works. Open the app to turn it back on.</string>
     <string name="boot_loop_paused_native_wifi_direct">This device restarted three times in a row shortly after Open Headunit started wireless, so wireless was left off this time. On some head units the WiFi chipset takes the whole system down when a phone joins a WiFi Direct network. Try switching Android Auto mode to the head unit hotspot. USB still works.</string>

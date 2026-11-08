@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AutoReplacer launcher icon foreground: a car screen with a play arrow. Drawn inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M34,38 h40 a4,4 0 0 1 4,4 v24 a4,4 0 0 1 -4,4 h-40 a4,4 0 0 1 -4,-4 v-24 a4,4 0 0 1 4,-4 z"
+        android:strokeWidth="3.5"
+        android:strokeColor="@color/autoreplacer_icon_accent"
+        android:fillColor="#00000000"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M47,76 h14"
+        android:strokeWidth="3.5"
+        android:strokeColor="@color/autoreplacer_icon_accent"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M50,46 L50,62 L64,54 z"
+        android:fillColor="@color/autoreplacer_icon_accent" />
+</vector>

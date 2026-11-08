@@ -35,11 +35,23 @@ class AboutFragment : Fragment() {
         val contentText = view.findViewById<TextView>(R.id.about_content_text)
         
         val sb = StringBuilder()
-        sb.append("<b>Special thanks to Mike Reidis for the original idea and android auto protocol and code.</b><br/>")
-        sb.append("<a href=\"https://github.com/mikereidis/headunit\">https://github.com/mikereidis/headunit</a><br/><br/>")
-        sb.append("<h3>Issues, bugs, and feedback or questions</h3>")
-        sb.append("If you need any help, go to the github page of this app. You will additionally can support me via <a href=\"https://www.paypal.me/anrinas\">Paypal</a><br/>")
-        sb.append("<a href=\"https://github.com/andreknieriem/open-headunit\">https://github.com/andreknieriem/open-headunit</a><br/><br/>")
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            sb.append("<h2>AutoReplacer</h2>")
+            sb.append("Runs Android Auto on this phone and shows it on the screen of a car with Auto+ Show.<br/>")
+            sb.append("Source code and issues: <a href=\"https://github.com/ItsRammen/AutoReplacer\">https://github.com/ItsRammen/AutoReplacer</a><br/>")
+            sb.append("Licensed under the GNU Affero General Public License v3 (full text below).<br/><br/>")
+            sb.append("<h3>Built on Open Headunit</h3>")
+            sb.append("Open Headunit by Andr\u00e9 Rinas: <a href=\"https://github.com/andreknieriem/open-headunit\">https://github.com/andreknieriem/open-headunit</a><br/>")
+            sb.append("which continues Headunit by Michael A. Reid: <a href=\"https://github.com/mikereidis/headunit\">https://github.com/mikereidis/headunit</a><br/>")
+            sb.append("AutoReplacer changes the connection, video output, touch and screens for Auto+ Show; the rest is theirs. Thank you.<br/><br/>")
+            sb.append("<h3>Open Headunit changelog (upstream)</h3>")
+        } else {
+            sb.append("<b>Special thanks to Mike Reidis for the original idea and android auto protocol and code.</b><br/>")
+            sb.append("<a href=\"https://github.com/mikereidis/headunit\">https://github.com/mikereidis/headunit</a><br/><br/>")
+            sb.append("<h3>Issues, bugs, and feedback or questions</h3>")
+            sb.append("If you need any help, go to the github page of this app. You will additionally can support me via <a href=\"https://www.paypal.me/anrinas\">Paypal</a><br/>")
+            sb.append("<a href=\"https://github.com/andreknieriem/open-headunit\">https://github.com/andreknieriem/open-headunit</a><br/><br/>")
+        }
 
         sb.append(parseMarkdownToHtml(readAsset("CHANGELOG.md")))
         sb.append("<br/><br/>")

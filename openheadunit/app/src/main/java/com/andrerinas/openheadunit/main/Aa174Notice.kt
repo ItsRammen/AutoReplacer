@@ -27,6 +27,8 @@ object Aa174Notice {
     fun isShowing(): Boolean = dialog?.isShowing == true
 
     fun maybeShow(activity: Activity?, settings: Settings) {
+        // AutoReplacer is not a renamed install and has no wireless set-up, so neither upstream notice applies.
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) return
         if (activity == null || ActivityState.isGone(activity)) return
         if (settings.aa174NoticeShown) return
         // If rename notice is still pending or showing, let it show first
