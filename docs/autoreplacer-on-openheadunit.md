@@ -43,3 +43,13 @@ Known risks, all untested on a phone and car:
 3. A stale car helper from an earlier session holds port 8051 until the phone restarts; touch will then be unavailable (the notification says so).
 4. Encoder settings (baseline, 1 s keyframes, ~2.8 Mbit/s at 720p) are copied from the probe, which the car accepted; Surface input and repeated frames are new.
 5. The Android Auto stream is decoded and re-encoded, which adds latency and CPU use.
+
+## Bluetooth (0.5.4)
+
+Auto+ Show bonded with the car's Bluetooth address (carried in VIDEO_READY after 28 bytes of integers, a 6-byte and a 10-byte field: a 17-character `XX:XX:XX:XX:XX:XX`) and then connected the headset and A2DP profiles through hidden APIs. Those hidden calls need BLUETOOTH_PRIVILEGED, so a normal app cannot repeat them. AutoReplacer instead:
+
+1. reads the address (`Wire.carBluetoothAddress`);
+2. if Bluetooth is on and the Nearby devices permission is granted, starts pairing when the phone is not bonded to the car (`createBond`), or checks the bond;
+3. watches for the car to connect media (A2DP) and call (headset) audio, rechecking for about 20 s, and shows the result on the notification's second line.
+
+Not done: sending Auto+ Show's "Bluetooth setup" stage in the session request (could make the car show its pairing screen and delay video), connecting profiles ourselves, and anything that enables Bluetooth. Whether the car also needs the pairing before it will send touch is unknown; the first car run will show it.

@@ -110,6 +110,18 @@ public final class Wire {
         }
     }
 
+    /**
+     * The car's Bluetooth address from a VIDEO_READY payload, or null if it is missing or malformed.
+     * Layout (from the Auto+ Show client): 7 big-endian ints (28 bytes), a 6-byte and a 10-byte
+     * field, then the 17-character host Bluetooth address, "XX:XX:XX:XX:XX:XX".
+     */
+    public static String carBluetoothAddress(byte[] payload) {
+        final int offset = 28 + 6 + 10, length = 17;
+        if (payload == null || payload.length < offset + length) return null;
+        String text = new String(payload, offset, length, java.nio.charset.StandardCharsets.US_ASCII);
+        return BluetoothPlan.isValidAddress(text) ? text.toUpperCase(java.util.Locale.US) : null;
+    }
+
     public static int[] videoParameters(byte[] payload) throws IOException {
         if (payload.length < VIDEO_READY_BYTES) throw new IOException("Short VIDEO_READY: " + payload.length);
         ByteBuffer b = ByteBuffer.wrap(payload).order(ByteOrder.BIG_ENDIAN);

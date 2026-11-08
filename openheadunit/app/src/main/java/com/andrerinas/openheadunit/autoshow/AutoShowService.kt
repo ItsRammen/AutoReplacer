@@ -49,6 +49,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var link: GarminLink? = null
     private var encoder: CarEncoder? = null
     private var touchServer: CarTouchServer? = null
+    private var carBluetooth: CarBluetooth? = null
+    private var bluetoothStatus: String? = null
     private var savedResolutionId: Int? = null
     private var projecting = false
     private var ended = false
@@ -91,6 +93,16 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     override fun log(text: String) {
         AppLog.i("AutoShow: %s", text)
         if (text.startsWith("TS8051_BIND_FAILED")) setStatus("Car touch unavailable: restart the phone once, then reconnect")
+    }
+
+    override fun carBluetooth(addressOrNull: String?) {
+        main.post {
+            if (ended) return@post
+            carBluetooth?.stop()
+            carBluetooth = CarBluetooth(this, { text -> log(text) }, { text ->
+                main.post { bluetoothStatus = text; refreshNotification() }
+            }).also { it.start(addressOrNull) }
+        }
     }
 
     override fun videoReady(width: Int, height: Int, encoding: Int) {
@@ -185,6 +197,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     override fun onDestroy() {
+        carBluetooth?.stop()
         touchServer?.stop()
         if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {} }
         super.onDestroy()
@@ -194,14 +207,20 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     private fun setStatus(text: String) {
         status = text
+        refreshNotification()
+    }
+
+    private fun refreshNotification() {
         (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION, buildNotification())
     }
 
     private fun buildNotification(): Notification {
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else @Suppress("DEPRECATION") Notification.Builder(this)
+        val text = status + (bluetoothStatus?.let { "\nBluetooth: $it" } ?: "")
         return builder.setSmallIcon(R.drawable.ic_stat_aa)
             .setContentTitle("AutoReplacer · Auto+ Show")
             .setContentText(status)
+            .setStyle(Notification.BigTextStyle().bigText(text))
             .setOngoing(true)
             .build()
     }

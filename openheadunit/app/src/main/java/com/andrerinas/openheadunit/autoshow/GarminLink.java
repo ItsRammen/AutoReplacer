@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class GarminLink {
     public interface Listener {
         void log(String text);
+        /** The car's Bluetooth address from VIDEO_READY, or null if it is missing or malformed. Called once, just before videoReady. */
+        void carBluetooth(String addressOrNull);
         /** Called on the reader thread once, when the car announces its video size. */
         void videoReady(int width, int height, int encoding);
         /** Called once when the session is over. */
@@ -107,6 +109,7 @@ public final class GarminLink {
                         + " version=" + p[4] + "/" + p[5] + " adbStatus=" + p[6]);
                 if (videoReady) return;
                 readyAt = SystemClock.elapsedRealtime(); videoReady = true;
+                listener.carBluetooth(Wire.carBluetoothAddress(message.payload));
                 listener.videoReady(p[0], p[1], p[3]);
                 break;
             }
