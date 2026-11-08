@@ -20,6 +20,15 @@ import androidx.core.content.ContextCompat
 import com.andrerinas.openheadunit.App
 import com.andrerinas.openheadunit.R
 import com.andrerinas.openheadunit.aap.AapService
+import com.andrerinas.openheadunit.aap.protocol.messages.VideoFocusEvent
+import com.andrerinas.openheadunit.connection.CommManager
+import com.andrerinas.openheadunit.utils.HeadUnitScreenConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import com.andrerinas.openheadunit.aap.protocol.messages.TouchEvent
 import com.andrerinas.openheadunit.aap.protocol.proto.Input
 import com.andrerinas.openheadunit.utils.AppLog
@@ -53,6 +62,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var link: GarminLink? = null
     private var encoder: CarEncoder? = null
     private var touchServer: CarTouchServer? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var stateJob: Job? = null
     private var carBluetooth: CarBluetooth? = null
     private var bluetoothStatus: String? = null
     private var savedResolutionId: Int? = null
@@ -136,6 +147,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             val wanted = if (width >= 1280) Settings.Resolution._1280x720 else Settings.Resolution._800x480
             savedResolutionId = comp.settings.resolutionId
             comp.settings.resolutionId = wanted.id
+            // Android Auto draws for the car's landscape screen, not the phone's.
+            HeadUnitScreenConfig.carCanvas = Pair(maxOf(width, height), minOf(width, height))
+            HeadUnitScreenConfig.unlockResolution()
             comp.videoDecoder.surfaceLock = null
             comp.videoDecoder.setSurface(surface)
             comp.videoDecoder.surfaceLock = surface
@@ -147,6 +161,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 .setAction(AapService.ACTION_START_SELF_MODE)
                 .putExtra(AapService.EXTRA_NO_UI, true))
             setStatus("Starting Android Auto on the phone")
+            watchAndroidAuto(comp)
         } catch (e: Exception) {
             log("AUTOSHOW_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
             shutdown("Could not start projection: ${e.message}")
@@ -184,6 +199,35 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         }
         if (b != 2 || touchLogged++ < 20) log("AUTOSHOW_TOUCH car=$x,$y/${cw}x$ch -> aa=$ax,$ay/${vw}x$vh action=$b")
         comp.commManager.send(TouchEvent(SystemClock.uptimeMillis(), action, 0, listOf(Triple(0, ax, ay))))
+    }
+
+    /**
+     * Open Headunit starts reading Android Auto's messages only when its projection screen has a
+     * surface. There is no such screen in car mode, so the message loop is started here as soon as
+     * the handshake is complete; without it Android Auto waits for an answer and sends no video.
+     */
+    private fun watchAndroidAuto(comp: com.andrerinas.openheadunit.AppComponent) {
+        stateJob?.cancel()
+        stateJob = scope.launch {
+            comp.commManager.connectionState.collect { state ->
+                when (state) {
+                    is CommManager.ConnectionState.HandshakeComplete -> {
+                        log("AUTOSHOW_AA_HANDSHAKE_COMPLETE: starting the Android Auto message loop")
+                        launch { comp.commManager.startReading() }
+                    }
+                    is CommManager.ConnectionState.TransportStarted -> {
+                        setStatus("Android Auto is running")
+                        main.postDelayed({
+                            if (!ended && comp.videoDecoder.lastFrameRenderedMs == 0L && comp.commManager.isConnected) {
+                                log("AUTOSHOW_VIDEO_FOCUS_NUDGE: no picture yet, asking for video focus")
+                                comp.commManager.send(VideoFocusEvent(gain = true, unsolicited = true))
+                            }
+                        }, 6000L)
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 
     // --- diagnostics ----------------------------------------------------------
@@ -250,8 +294,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try { encoder?.stop() } catch (_: Exception) {}
         encoder = null
         carSessionActive = false
+        stateJob?.cancel()
+        HeadUnitScreenConfig.carCanvas = null
         if (projecting) {
             val comp = App.provide(this)
+            HeadUnitScreenConfig.unlockResolution()
             comp.videoDecoder.surfaceLock = null
             try { comp.videoDecoder.setSurface(null) } catch (_: Exception) {}
             savedResolutionId?.let { comp.settings.resolutionId = it }
@@ -264,6 +311,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun onDestroy() {
         carSessionActive = false
+        HeadUnitScreenConfig.carCanvas = null
+        scope.cancel()
         try { App.provide(this).videoDecoder.surfaceLock = null } catch (_: Exception) {}
         carBluetooth?.stop()
         touchServer?.stop()

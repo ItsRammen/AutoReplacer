@@ -194,11 +194,45 @@ object HeadUnitScreenConfig {
     }
 
 
+    /**
+     * AutoReplacer: the car's screen size (landscape). While set, Android Auto is told to draw for
+     * this canvas instead of the phone's screen, so phone orientation and shape do not matter.
+     */
+    @Volatile var carCanvas: Pair<Int, Int>? = null
+
     fun init(context: Context, displayMetrics: DisplayMetrics, settings: Settings) = updateGeometry {
         initGeometry(context, displayMetrics, settings)
     }
 
     private fun initGeometry(context: Context, displayMetrics: DisplayMetrics, settings: Settings) {
+        carCanvas?.let { (carW, carH) ->
+            val captured = GeometrySettings(
+                settings.resolutionId, settings.pixelAspectRatioE4, settings.dpiPixelDensity,
+                settings.displaySizePreset, settings.dpiFloorOverride,
+            )
+            if (isInitialized && realScreenWidthPx == carW && realScreenHeightPx == carH && geometrySettings == captured &&
+                systemInsetLeft == 0 && systemInsetTop == 0 && systemInsetRight == 0 && systemInsetBottom == 0) return
+            normalisation = ScreenOrientationPolicy.Normalisation.LANDSCAPE
+            physicalWidthPx = carW
+            physicalHeightPx = carH
+            isInitialized = true
+            lastSettingsHash = computeSettingsHash(settings, normalisation)
+            currentSettings = settings
+            geometrySettings = captured
+            appContext = context.applicationContext
+            density = displayMetrics.density
+            videoFitMode = settings.videoFitMode
+            forcedScale = false
+            systemInsetLeft = 0
+            systemInsetTop = 0
+            systemInsetRight = 0
+            systemInsetBottom = 0
+            realScreenWidthPx = carW
+            realScreenHeightPx = carH
+            AppLog.i("[UI_DEBUG] HeadUnitScreenConfig: AutoReplacer car canvas ${carW}x${carH}, phone screen ignored")
+            recalculate()
+            return
+        }
         val screenOrientation = settings.screenOrientation
         val configOrientation = context.resources.configuration.orientation
         val isConfigLandscape = configOrientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE

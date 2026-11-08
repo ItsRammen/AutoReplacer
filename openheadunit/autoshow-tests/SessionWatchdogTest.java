@@ -8,8 +8,8 @@ public final class SessionWatchdogTest {
     public static void main(String[] args) {
         check(SessionWatchdog.failure(15000,0,false,0,0,0)==null,"initial negotiation gets full deadline");
         check(SessionWatchdog.failure(15001,0,false,0,0,0)!=null,"missing VIDEO_READY still stops");
-        check(SessionWatchdog.failure(20000,0,true,5001,0,0)==null,"encoder startup has its own deadline");
-        check(SessionWatchdog.failure(20002,0,true,5001,0,0)!=null,"encoder never producing a buffer still stops");
+        check(SessionWatchdog.failure(65000,0,true,5001,0,0)==null,"encoder startup has its own deadline");
+        check(SessionWatchdog.failure(65002,0,true,5001,0,0)!=null,"encoder never producing a buffer still stops");
         check(SessionWatchdog.failure(3600000,0,true,3000,18000,3599999)==null,"hour of event-driven receive silence must not end advancing video");
         check(SessionWatchdog.failure(100000,0,true,3000,80,84999)!=null,"stalled video output still stops");
         // Reproduce the user's final run: opened 14:23:40, ready at +3s,

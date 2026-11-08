@@ -158,7 +158,8 @@ class MainActivity : BaseActivity() {
         clearBootLoopGuardIfOpenedByHand()
 
         // If an Android Auto session is active, bring the projection activity to front
-        if (App.provide(this).commManager.isConnected && !App.isPiPActive) {
+        if (App.provide(this).commManager.isConnected && !App.isPiPActive &&
+            !com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive) {
             AppLog.i("MainActivity: Active session detected in onCreate, bringing projection to front")
             bringProjectionToFront()
 
@@ -1324,7 +1325,8 @@ class MainActivity : BaseActivity() {
         // there the projection is opened from the main button. Without this, moving the projection
         // to the background looked like it restarted the session two seconds later.
         if (App.provide(this).commManager.isConnected && !App.isPiPActive &&
-            !AapProjectionActivity.isForeground && !CarLauncherManager.isDefaultLauncher(this)
+            !AapProjectionActivity.isForeground && !CarLauncherManager.isDefaultLauncher(this) &&
+            !com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive
         ) {
             AppLog.i("MainActivity: Active session detected, bringing projection to front")
             bringProjectionToFront()
