@@ -11,7 +11,8 @@ import java.net.Socket
  * the server's port (127.0.0.1:5277) and closes again straight away. It is not run during a session.
  */
 object AutoShowServerProbe {
-    const val HINT = "Android Auto's head unit server is not running. On the phone open Android Auto, " +
+    const val HEADLINE = "Android Auto's head unit server is not running."
+    const val HINT = HEADLINE + " On the phone open Android Auto, " +
         "then Developer settings, then Start head unit server. Start it before plugging in."
 
     /** True/false after a check, null until the first one finishes. */

@@ -58,14 +58,31 @@ object AutoShowStatusCard {
     fun detail(snapshot: AutoShowState.Snapshot): String =
         "Touch: ${snapshot.touch}\nBluetooth: ${snapshot.bluetooth}"
 
+    private const val WARNING_COLOR = 0xFFFFB74D.toInt()
+
+    /** Amber while the warning shows; the card's own colour comes back afterwards. */
+    private fun paintWarning(view: TextView, warn: Boolean) {
+        if (view.getTag(R.id.home_primary_kicker) == null) view.setTag(R.id.home_primary_kicker, view.currentTextColor)
+        val original = view.getTag(R.id.home_primary_kicker) as Int
+        view.setTextColor(if (warn) WARNING_COLOR else original)
+    }
+
     /** Fills the home card. [onAction] gets a click on the main button when it offers Reconnect. */
     fun apply(root: View, snapshot: AutoShowState.Snapshot, onReconnect: () -> Unit, onSaveLog: () -> Unit) {
         val context = root.context
         val cableIn = attachedAccessory(context) != null
-        root.findViewById<TextView>(R.id.home_primary_kicker)?.text = "AutoReplacer · Auto+ Show"
-        root.findViewById<TextView>(R.id.home_primary_title)?.apply { text = title(snapshot, cableIn); maxLines = 2 }
+        val warning = serverWarning(snapshot)
+        root.findViewById<TextView>(R.id.home_primary_kicker)?.apply {
+            text = if (warning != null) "Setup needed" else "AutoReplacer · Auto+ Show"
+            paintWarning(this, warning != null)
+        }
+        root.findViewById<TextView>(R.id.home_primary_title)?.apply {
+            text = if (warning != null) "Start Android Auto's server first" else title(snapshot, cableIn)
+            maxLines = 2
+            paintWarning(this, warning != null)
+        }
         root.findViewById<TextView>(R.id.home_primary_subtitle)?.apply {
-            text = serverWarning(snapshot) ?: subtitle(snapshot, cableIn); maxLines = 5
+            text = warning?.removePrefix(AutoShowServerProbe.HEADLINE)?.trim() ?: subtitle(snapshot, cableIn); maxLines = 5
         }
         root.findViewById<TextView>(R.id.home_primary_detail)?.apply {
             visibility = if (snapshot.phase == AutoShowState.Phase.WAITING) View.GONE else View.VISIBLE

@@ -4,9 +4,6 @@
     <item
         android:width="160dp"
         android:height="160dp"
-        android:gravity="center">
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash_logo" />
-    </item>
+        android:gravity="center"
+        android:drawable="@drawable/ic_autoreplacer_foreground" />
 </layer-list>

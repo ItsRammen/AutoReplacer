@@ -378,13 +378,13 @@
             <ImageView
                 android:layout_width="160dp"
                 android:layout_height="160dp"
-                android:src="@drawable/splash_logo" />
+                android:src="@drawable/ic_autoreplacer_foreground" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="OPEN"
+                android:text="AUTO"
                 android:textColor="@color/splash_text_white"
                 android:textSize="35sp"
                 android:textStyle="bold" />
@@ -393,7 +393,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-4dp"
-                android:text="Headunit"
+                android:text="Replacer"
                 android:textAllCaps="true"
                 android:textColor="@color/splash_text_revived"
                 android:textSize="35sp"

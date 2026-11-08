@@ -5,8 +5,8 @@
     <color name="divider_color">#1FFFFFFF</color>
     <color name="adaptive_text_color">#FFFFFF</color>
     <color name="text_primary">#f7f7f7</color>
-    <color name="splash_background">@color/setting_background_color</color>
-    <color name="splash_text_revived">@color/color_projection_blue</color>
+    <color name="splash_background">@color/autoreplacer_icon_background</color>
+    <color name="splash_text_revived">@color/autoreplacer_icon_accent</color>
     <color name="onb_audio_card">#1B2B28</color>
     <color name="onb_audio_option">#16221F</color>
     <color name="onb_audio_option_selected">#22332F</color>
