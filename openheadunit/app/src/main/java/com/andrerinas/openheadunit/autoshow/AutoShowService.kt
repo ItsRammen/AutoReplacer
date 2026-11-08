@@ -73,6 +73,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var carWidth = 0
     private var carHeight = 0
     private var lastStartId = 0
+    private var splash: CarSplash? = null
+    private val splashLock = Any()
+    private var splashOpen = false
+    private val aaPictureFrames = java.util.concurrent.atomic.AtomicLong()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -147,10 +151,22 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try {
             val currentLink = link ?: return
             val enc = CarEncoder(width, height, object : CarEncoder.Sink {
-                override fun frame(data: ByteArray, codecConfig: Boolean) { currentLink.sendVideo(data) }
+                override fun frame(data: ByteArray, codecConfig: Boolean) {
+                    aaPictureFrames.incrementAndGet()
+                    // The first Android Auto picture replaces the waiting picture; no splash frame may follow it.
+                    var wasSplash = false
+                    synchronized(splashLock) { if (splashOpen) { splashOpen = false; wasSplash = true } }
+                    if (wasSplash) {
+                        log("AUTOSHOW_SPLASH_DONE: the first Android Auto picture replaces the waiting picture")
+                        val old = splash; splash = null
+                        Thread { try { old?.stop() } catch (_: Exception) {} }.start()
+                    }
+                    currentLink.sendVideo(data)
+                }
                 override fun log(text: String) { this@AutoShowService.log(text) }
                 override fun failed(error: Exception) { main.post { shutdown("Encoder failed: ${error.message}") } }
             })
+            startSplash(currentLink, width, height)
             val surface = enc.start()
             encoder = enc
             val comp = App.provide(this)
@@ -177,6 +193,24 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         } catch (e: Exception) {
             log("AUTOSHOW_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
             shutdown("Could not start projection: ${e.message}")
+        }
+    }
+
+    /** Shows a waiting picture on the car until Android Auto's first picture arrives. Failure here is not fatal. */
+    private fun startSplash(currentLink: GarminLink, width: Int, height: Int) {
+        try {
+            synchronized(splashLock) { splashOpen = true }
+            splash = CarSplash(width, height, object : CarEncoder.Sink {
+                override fun frame(data: ByteArray, codecConfig: Boolean) {
+                    synchronized(splashLock) { if (splashOpen) currentLink.sendVideo(data) }
+                }
+                override fun log(text: String) { this@AutoShowService.log(text.replace("CAR_ENCODER", "CAR_SPLASH_ENCODER")) }
+                override fun failed(error: Exception) { this@AutoShowService.log("CAR_SPLASH_FAILED: ${error.message}") }
+            }, CarSplash.Text { AutoShowState.state.value.headline }).also { it.start() }
+        } catch (e: Exception) {
+            synchronized(splashLock) { splashOpen = false }
+            splash = null
+            log("CAR_SPLASH_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
@@ -257,7 +291,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 val rendered = if (d.lastFrameRenderedMs > 0) "${(SystemClock.elapsedRealtime() - d.lastFrameRenderedMs)}ms ago" else "never"
                 log("AUTOSHOW_STATS aaConnected=${comp.commManager.isConnected} aaState=${comp.commManager.connectionState.value.javaClass.simpleName}" +
                     " decoderOnCarSurface=${d.isCurrentSurface(surface)} lastDecodedFrame=$rendered" +
-                    " decoded=${d.videoWidth}x${d.videoHeight} carFrames=${link?.frames() ?: 0}")
+                    " decoded=${d.videoWidth}x${d.videoHeight} carFrames=${link?.frames() ?: 0} aaPictureFrames=${aaPictureFrames.get()} splash=${splashOpen}")
                 ticks++
                 main.postDelayed(this, if (ticks < 12) 5000L else 30000L)
             }
@@ -277,6 +311,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try { link?.stop(reason) } catch (_: Exception) {}
         try { encoder?.stop() } catch (_: Exception) {}
         encoder = null
+        synchronized(splashLock) { splashOpen = false }
+        splash?.let { s -> splash = null; Thread { try { s.stop() } catch (_: Exception) {} }.start() }
         carSessionActive = false
         stateJob?.cancel()
         HeadUnitScreenConfig.carCanvas = null
@@ -300,6 +336,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         carBluetooth?.stop(); carBluetooth = null
         link = null; encoder = null
         projecting = false; ended = false
+        aaPictureFrames.set(0)
         bluetoothStatus = null
         touchLogged = 0
         carWidth = 0; carHeight = 0
@@ -313,7 +350,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try { App.provide(this).videoDecoder.surfaceLock = null } catch (_: Exception) {}
         carBluetooth?.stop()
         touchServer?.stop()
-        if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {} }
+        if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {}; try { splash?.stop() } catch (_: Exception) {} }
         super.onDestroy()
     }
 
