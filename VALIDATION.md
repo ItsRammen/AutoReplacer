@@ -1,3 +1,7 @@
+# Version 0.4.0 changes
+
+- AAP version framing (`AapFrame`) covered by `tests/AapFrameTest.java`; all 11 suites pass and the APK builds against android-35. The Android Auto check and the settings screen have not been run on a phone yet. Adds a `<queries>` entry for the Android Auto package.
+
 # Version 0.3.8 changes
 
 - `GridState.carTouch` records car touches regardless of phone-grid visibility; `carLive` drives the car-side display. New `GridStateTest` checks cover hidden-grid phone vs car touch. All 10 suites pass; APK builds. Not yet run in the car.

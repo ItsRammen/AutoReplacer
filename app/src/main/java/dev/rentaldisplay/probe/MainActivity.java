@@ -49,7 +49,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     private UsbAccessory pending;
     private TextView status, logView;
     private Button connect, stop;
-    private CheckBox adbSetup, maskReply, garminGeometry;
+    private boolean adbRequestSession, settingsShown;
+    private TextView aaStatus;
     private TouchGridView gridView;
     private boolean visible, uiQueued, permissionInFlight, needsReconnect, gridActive, carPhase;
     private boolean pendingGridConnect;
@@ -100,8 +101,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (inputs != null) inputs.registerInputDeviceListener(this, main);
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                () -> { if (gridActive) leaveGrid(); else finish(); });
-        log.add("=== Rental Display Probe 0.3.8; Android API " + Build.VERSION.SDK_INT + " ===");
+                () -> { if (gridActive) leaveGrid(); else if (settingsShown) closeSettings(); else finish(); });
+        log.add("=== Rental Display Probe 0.4.0; Android API " + Build.VERSION.SDK_INT + " ===");
         log.add("PHONE_MODEL: " + Build.MANUFACTURER + " " + Build.MODEL);
         log.add("Stationary touch diagnostic. USB path based on the displayed 0.1.1 test; no Bluetooth-name exchange.");
         log.add("Input metadata is evidence, not proof of car origin. During CAR TEST touch only the car screen.");
@@ -126,14 +127,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         root.addView(actions);
         root.addView(label("These actions include the full retained log, even when only recent events appear below.",12));
         root.addView(button("Phone input check (no USB)", v -> startGrid(false)));
-        adbSetup = new CheckBox(this); adbSetup.setText("Advanced: ask car to set up ADB touch");
-        adbSetup.setTextColor(Color.WHITE); root.addView(adbSetup);
-        root.addView(label("Off by default. Requires USB debugging already enabled. Authorizing a rental car for debugging gives it broader access to your phone; avoid persistent authorization.",12));
-        maskReply = new CheckBox(this); maskReply.setText("Reply to car safety state like Auto+ Show");
-        maskReply.setTextColor(Color.WHITE); maskReply.setChecked(true); root.addView(maskReply);
-        garminGeometry = new CheckBox(this); garminGeometry.setText("Advertise screen size like Auto+ Show (portrait real size)");
-        garminGeometry.setTextColor(Color.WHITE); root.addView(garminGeometry);
-        root.addView(label("Safety reply: only when the car reports unrestricted and stopped, it sends Auto+ Show's 'not masked' answer. Screen size: sends the phone's full portrait size instead of the grid view size.",12));
+        root.addView(button("Test settings & Android Auto check", v -> showSettings()));
+        root.addView(label(settingsSummary(),12));
         connect = button("Start car touch grid", v -> startGrid(true)); root.addView(connect);
         root.addView(button("Retry connection (keep cable plugged in)", v -> retryConnection()));
         root.addView(button("Keep streaming in background",v -> backgroundStream()));
@@ -173,7 +168,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
             log.add("UI_GRID_RESUMED: existing service session and calibration retained"); showGrid(); return;
         }
         carPhase = car; grid.reset(car); contactTally.reset(); gridActive = true; pendingGridConnect = car; lastMoveLog = 0;
-        requestAdbForTest = car && adbSetup.isChecked();
+        requestAdbForTest = car && adbRequestSession;
         logDebugState(car ? "CAR_TEST_START" : "PHONE_BASELINE_START");
         log.add("INPUT_SETUP_MODE: " + (requestAdbForTest ? "user-selected ADB setup request" : "passive input observation"));
         log.add("TOUCH_TEST_BEGIN: phase=" + (car ? "CAR" : "PHONE") + "; normalised full-view coordinates; Back exits grid");
@@ -282,7 +277,57 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         log.add("UI_BACKGROUND_REQUESTED: service retains USB, encoder and logs");
         moveTaskToBack(true);
     }
-    @Override public void onBackPressed() { if (gridActive) leaveGrid(); else super.onBackPressed(); }
+    @Override public void onBackPressed() {
+        if (gridActive) leaveGrid(); else if (settingsShown) closeSettings(); else super.onBackPressed();
+    }
+    private android.content.SharedPreferences settings() { return getSharedPreferences("test_settings",MODE_PRIVATE); }
+    private String settingsSummary() {
+        return "Test settings: safety reply " + (settings().getBoolean("safety_reply",true) ? "on" : "off")
+                + " · Auto+ Show screen size " + (settings().getBoolean("garmin_geometry",false) ? "on" : "off")
+                + " · ADB request " + (adbRequestSession ? "on (this session)" : "off")
+                + " · car touch works with the phone UI in the background";
+    }
+    private CheckBox option(LinearLayout root, String text, boolean checked, android.widget.CompoundButton.OnCheckedChangeListener change) {
+        CheckBox box = new CheckBox(this); box.setText(text); box.setTextColor(Color.WHITE); box.setChecked(checked);
+        box.setOnCheckedChangeListener(change); root.addView(box); return box;
+    }
+    private void showSettings() {
+        settingsShown = true;
+        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(18); root.setPadding(pad, pad, pad, pad); root.setBackgroundColor(Color.rgb(15,25,37));
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(pad + insets.getSystemWindowInsetLeft(), pad + insets.getSystemWindowInsetTop(),
+                    pad + insets.getSystemWindowInsetRight(), pad + insets.getSystemWindowInsetBottom()); return insets;
+        });
+        root.addView(label("Test settings", 24));
+        root.addView(label("Car touch", 18));
+        root.addView(label("Car touch arrives on port 8051 and keeps working while this app is in the background, on another screen, or with the phone grid hidden. Open this app before plugging in.", 13));
+        option(root, "Reply to car safety state like Auto+ Show (needed for car touch)", settings().getBoolean("safety_reply",true),
+                (b, on) -> { settings().edit().putBoolean("safety_reply",on).apply(); log.add("TEST_SETTING: safety_reply=" + on); });
+        option(root, "Advertise screen size like Auto+ Show (portrait real size)", settings().getBoolean("garmin_geometry",false),
+                (b, on) -> { settings().edit().putBoolean("garmin_geometry",on).apply(); log.add("TEST_SETTING: garmin_geometry=" + on); });
+        CheckBox adb = option(root, "Ask car to set up ADB touch (this session only)", adbRequestSession,
+                (b, on) -> { adbRequestSession = on; log.add("TEST_SETTING: adb_request=" + on + " (not saved)"); });
+        adb.setEnabled(!host.active());
+        root.addView(label("Settings apply to the next connection. The ADB request is not saved, because authorizing a rental car for debugging gives it broad access to the phone.", 12));
+        root.addView(label("Android Auto", 18));
+        root.addView(label("Checks that Android Auto is installed and that its developer head unit server answers on 127.0.0.1:5277. To start it: open Android Auto settings, tap Version repeatedly to enable developer settings, then use the menu → Start head unit server. Stops before encryption; nothing is projected yet.", 13));
+        aaStatus = label("Not checked", 15); aaStatus.setTextColor(Color.rgb(100,230,204));
+        Button check = button("Check Android Auto connection", null);
+        check.setOnClickListener(v -> {
+            check.setEnabled(false); aaStatus.setText("Checking…");
+            log.add("AA_CHECK_BEGIN");
+            AndroidAutoCheck.run(this, log, summary -> main.post(() -> {
+                if (isDestroyed()) return;
+                aaStatus.setText(summary); check.setEnabled(true); log.add("AA_CHECK_RESULT: " + summary);
+            }));
+        });
+        root.addView(check); root.addView(aaStatus);
+        root.addView(button("Back", v -> closeSettings()));
+        ScrollView page = new ScrollView(this); page.setFillViewport(true); page.setBackgroundColor(Color.rgb(15,25,37));
+        page.addView(root); setContentView(page);
+    }
+    private void closeSettings() { settingsShown = false; buildUi(); refresh(); }
     @Override public void onConfigurationChanged(Configuration c) { super.onConfigurationChanged(c); if (gridActive) immersive(); }
 
     private void observeWindowInput(MotionEvent event, String path) {
@@ -424,8 +469,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
             Intent service = new Intent(this,StreamService.class).setAction(StreamService.START)
                     .putExtra(UsbManager.EXTRA_ACCESSORY,a).putExtra("width",phoneWidth).putExtra("height",phoneHeight)
                     .putExtra("dpi",getResources().getDisplayMetrics().densityDpi).putExtra("request_adb",request)
-                    .putExtra("mask_reply",maskReply.isChecked());
-            if (garminGeometry.isChecked()) {
+                    .putExtra("mask_reply",settings().getBoolean("safety_reply",true));
+            if (settings().getBoolean("garmin_geometry",false)) {
                 android.graphics.Point real = new android.graphics.Point();
                 getWindowManager().getDefaultDisplay().getRealSize(real);
                 service.putExtra("adv_width",Math.min(real.x,real.y)).putExtra("adv_height",Math.max(real.x,real.y));
@@ -455,7 +500,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (!visible || permissionInFlight || logBusy || retryQueued) return;
         retryQueued = true;
         final int generation = ++retryGeneration;
-        final boolean requestAdb = gridActive ? requestAdbForTest : adbSetup.isChecked();
+        final boolean requestAdb = gridActive ? requestAdbForTest : adbRequestSession;
         log.add("SOFT_RETRY_REQUESTED: one user-requested session restart; no USB reset or automatic loop");
         if (host.active()) host.stop("User requested a fresh session without unplugging");
         state("Closing old connection · retrying with cable attached");
@@ -500,7 +545,6 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (logView == null) return;
         logView.setText(log.text()); connect.setText(host.active() ? "Resume car touch grid" : "Start car touch grid");
         connect.setEnabled(!permissionInFlight && !logBusy); stop.setEnabled(host.active());
-        adbSetup.setEnabled(!host.active() && !permissionInFlight && !logBusy);
     }
     private boolean beginLogAction() {
         if (logBusy) { Toast.makeText(this,"Preparing full log…",Toast.LENGTH_SHORT).show(); return false; }
