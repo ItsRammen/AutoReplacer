@@ -60,6 +60,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     private UsbAccessory notificationAccessory;
     private File pendingSaveSnapshot;
     private long lastMoveLog, lastWindowMotionLog;
+    private final ContactTally contactTally = new ContactTally();
     private int phoneWidth, phoneHeight;
     private String permissionAction;
     private static final int EXPORT_LOG = 101;
@@ -100,7 +101,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 () -> { if (gridActive) leaveGrid(); else finish(); });
-        log.add("=== Rental Display Probe 0.3.4; Android API " + Build.VERSION.SDK_INT + " ===");
+        log.add("=== Rental Display Probe 0.3.5; Android API " + Build.VERSION.SDK_INT + " ===");
         log.add("PHONE_MODEL: " + Build.MANUFACTURER + " " + Build.MODEL);
         log.add("Stationary touch diagnostic. USB path based on the displayed 0.1.1 test; no Bluetooth-name exchange.");
         log.add("Input metadata is evidence, not proof of car origin. During CAR TEST touch only the car screen.");
@@ -166,7 +167,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
             carPhase = true; gridActive = true; pendingGridConnect = false;
             log.add("UI_GRID_RESUMED: existing service session and calibration retained"); showGrid(); return;
         }
-        carPhase = car; grid.reset(car); gridActive = true; pendingGridConnect = car; lastMoveLog = 0;
+        carPhase = car; grid.reset(car); contactTally.reset(); gridActive = true; pendingGridConnect = car; lastMoveLog = 0;
         requestAdbForTest = car && adbSetup.isChecked();
         logDebugState(car ? "CAR_TEST_START" : "PHONE_BASELINE_START");
         log.add("INPUT_SETUP_MODE: " + (requestAdbForTest ? "user-selected ADB setup request" : "passive input observation"));
@@ -238,6 +239,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         GridState.Snapshot s = grid.snapshot();
         log.add((host.active() ? "TOUCH_GRID_HIDDEN" : "TOUCH_TEST_END")+": phase=" + (carPhase ? "CAR" : "PHONE") + "; events=" + s.events
                 + "; downs=" + s.downs + "; targets=" + s.complete + "/5; origin not automatically confirmed");
+        log.add("INPUT_TALLY: primary downs by origin/profile = " + contactTally.summary()
+                + "; labels are attribution hints, not proof of physical origin");
         gridActive = false; pendingGridConnect = false; host.gridVisible(false);
         getWindow().getDecorView().setSystemUiVisibility(0);
         if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(true);
@@ -323,6 +326,11 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
             double nx = event.getX(i) / width, ny = event.getY(i) / height;
             String summary = String.format(Locale.US, "%s p%d cell %d  x=%.3f y=%.3f  dev=%d",
                     kind, event.getPointerId(i), GridState.cell(nx,ny), nx, ny, event.getDeviceId());
+            boolean contactActive = !generic && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE
+                    || action == MotionEvent.ACTION_POINTER_DOWN);
+            String profile = ContactProfile.classify(contactActive, event.getPressure(i), event.getSize(i), event.getTouchMajor(i));
+            if (!generic && action == MotionEvent.ACTION_DOWN && i == 0)
+                contactTally.add(InputDiagnostics.origin(device), profile);
             GridState.Hit hit = grid.touch(nx, ny, event.getPointerId(i), !generic && action == MotionEvent.ACTION_DOWN && i == 0,
                     i == 0, summary);
             if (writeLog) {
@@ -330,10 +338,12 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
                 float rawX = Build.VERSION.SDK_INT >= 29 ? event.getRawX(i) : event.getRawX() + event.getX(i) - event.getX();
                 float rawY = Build.VERSION.SDK_INT >= 29 ? event.getRawY(i) : event.getRawY() + event.getY(i) - event.getY();
                 log.add(String.format(Locale.US,
-                        "TOUCH phase=%s action=%s actionIndex=%d pointer=%d count=%d view=%.1f,%.1f raw=%.1f,%.1f norm=%.4f,%.4f inferredVideo=%.1f,%.1f cell=%d expected=%d hit=%s deltaNorm=%.4f,%.4f source=0x%x tool=%d pressure=%.2f deviceId=%d %s",
+                        "TOUCH phase=%s action=%s actionIndex=%d pointer=%d count=%d view=%.1f,%.1f raw=%.1f,%.1f norm=%.4f,%.4f inferredVideo=%.1f,%.1f cell=%d expected=%d hit=%s deltaNorm=%.4f,%.4f source=0x%x tool=%d pressure=%.2f deviceId=%d size=%.2f major=%.1f precision=%.2f,%.2f flags=0x%x meta=0x%x profile=%s %s",
                         carPhase ? "CAR" : "PHONE", kind, event.getActionIndex(), event.getPointerId(i), count, event.getX(i), event.getY(i), rawX, rawY,
                         nx, ny, nx * s.videoWidth, ny * s.videoHeight, hit.cell, hit.expected, hit.correct, hit.dx, hit.dy,
-                        event.getSource(), event.getToolType(i), event.getPressure(i), event.getDeviceId(), deviceInfo));
+                        event.getSource(), event.getToolType(i), event.getPressure(i), event.getDeviceId(),
+                        event.getSize(i), event.getTouchMajor(i), event.getXPrecision(), event.getYPrecision(),
+                        event.getFlags(), event.getMetaState(), profile, deviceInfo));
             }
         }
     }
