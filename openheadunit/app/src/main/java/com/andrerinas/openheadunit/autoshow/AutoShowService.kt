@@ -108,6 +108,12 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         link = GarminLink(usb, accessory, this, maxOf(real.x, real.y), minOf(real.x, real.y), dpi).also { it.start() }
         val blocker = AutoShowReadiness.carTouchBlocker(this)
         if (blocker != null) log("AUTOSHOW_READINESS: $blocker")
+        AutoShowServerProbe.refresh { up ->
+            if (!up && !ended && !projecting) {
+                log("AUTOSHOW_HEAD_UNIT_SERVER_DOWN: nothing is listening on 127.0.0.1:5277")
+                setStatus("Connecting to the car. " + AutoShowServerProbe.HINT)
+            }
+        }
         val earlierTouch = AutoShowState.state.value.touch
         AutoShowState.reset(AutoShowState.Phase.CONNECTING, "Connecting to the car")
         // A port-8051 failure was found when the service started, before this session began.
@@ -255,14 +261,22 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
      */
     private fun watchAndroidAuto(comp: com.andrerinas.openheadunit.AppComponent) {
         stateJob?.cancel()
+        // The state starts as Disconnected before the attempt has begun; only a Disconnected after a live state is a failure.
+        var sawLive = false
+        androidAutoRetries = 0
         stateJob = scope.launch {
             comp.commManager.connectionState.collect { state ->
+                if (state !is CommManager.ConnectionState.Disconnected) sawLive = true
                 when (state) {
+                    is CommManager.ConnectionState.Disconnected -> {
+                        if (sawLive && !ended) { sawLive = false; retryAndroidAuto(comp) }
+                    }
                     is CommManager.ConnectionState.HandshakeComplete -> {
                         log("AUTOSHOW_AA_HANDSHAKE_COMPLETE: starting the Android Auto message loop")
                         launch { comp.commManager.startReading() }
                     }
                     is CommManager.ConnectionState.TransportStarted -> {
+                        androidAutoRetries = 0
                         AutoShowState.update { it.copy(phase = AutoShowState.Phase.RUNNING) }
                         setStatus("Android Auto is running")
                         main.postDelayed({
@@ -276,6 +290,29 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 }
             }
         }
+    }
+
+    private var androidAutoRetries = 0
+
+    /**
+     * Android Auto 17.4 and later only answers once "Start head unit server" has been tapped in its
+     * developer settings, and Open Headunit does not retry by itself. Say so on the phone and the car
+     * and keep trying, so the picture comes up as soon as the server is started.
+     */
+    private fun retryAndroidAuto(comp: com.andrerinas.openheadunit.AppComponent) {
+        if (androidAutoRetries >= 100) { shutdown("Android Auto did not answer"); return }
+        androidAutoRetries++
+        log("AUTOSHOW_AA_RETRY: attempt $androidAutoRetries, Android Auto's head unit server did not answer or the session ended")
+        val hint = "Android Auto is not answering. On the phone open Android Auto, then Developer settings, then Start head unit server."
+        AutoShowState.update { it.copy(phase = AutoShowState.Phase.STARTING_ANDROID_AUTO, headline = hint, picture = false) }
+        setStatus(hint)
+        main.postDelayed({
+            if (!ended && !comp.commManager.isConnected) {
+                startService(Intent(this, AapService::class.java)
+                    .setAction(AapService.ACTION_START_SELF_MODE)
+                    .putExtra(AapService.EXTRA_NO_UI, true))
+            }
+        }, 6000L)
     }
 
     // --- diagnostics ----------------------------------------------------------

@@ -49,6 +49,12 @@ object AutoShowStatusCard {
         else -> snapshot.headline
     }
 
+    /** The warning to show first, when the server Android Auto needs is known not to be running. */
+    fun serverWarning(snapshot: AutoShowState.Snapshot): String? {
+        if (snapshot.phase == AutoShowState.Phase.RUNNING) return null
+        return if (AutoShowServerProbe.listening == false) AutoShowServerProbe.HINT else null
+    }
+
     fun detail(snapshot: AutoShowState.Snapshot): String =
         "Touch: ${snapshot.touch}\nBluetooth: ${snapshot.bluetooth}"
 
@@ -59,7 +65,7 @@ object AutoShowStatusCard {
         root.findViewById<TextView>(R.id.home_primary_kicker)?.text = "AutoReplacer · Auto+ Show"
         root.findViewById<TextView>(R.id.home_primary_title)?.apply { text = title(snapshot, cableIn); maxLines = 2 }
         root.findViewById<TextView>(R.id.home_primary_subtitle)?.apply {
-            text = subtitle(snapshot, cableIn); maxLines = 4
+            text = serverWarning(snapshot) ?: subtitle(snapshot, cableIn); maxLines = 5
         }
         root.findViewById<TextView>(R.id.home_primary_detail)?.apply {
             visibility = if (snapshot.phase == AutoShowState.Phase.WAITING) View.GONE else View.VISIBLE

@@ -70,8 +70,14 @@ public final class CarSplash {
                     canvas.drawArc(oval, (elapsed * 0.36f) % 360f, 100f, false, arc);
                     canvas.drawText("AutoReplacer", cx, height * 0.60f, title);
                     String message = text.line();
-                    if (message != null && !message.isEmpty()) canvas.drawText(message, cx, height * 0.68f, line);
-                    canvas.drawText(elapsed / 1000 + " s", cx, height * 0.75f, line);
+                    float y = height * 0.68f;
+                    if (message != null && !message.isEmpty()) {
+                        for (String row : wrap(message, line, width * 0.8f)) {
+                            canvas.drawText(row, cx, y, line);
+                            y += height * 0.06f;
+                        }
+                    }
+                    canvas.drawText(elapsed / 1000 + " s", cx, y + height * 0.02f, line);
                 } finally {
                     surface.unlockCanvasAndPost(canvas);
                 }
@@ -81,6 +87,18 @@ public final class CarSplash {
         } catch (Exception e) {
             if (!stopped) sink.log("CAR_SPLASH_STOPPED: " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
+    }
+
+    private static java.util.List<String> wrap(String text, Paint paint, float maxWidth) {
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        StringBuilder row = new StringBuilder();
+        for (String word : text.split(" ")) {
+            String candidate = row.length() == 0 ? word : row + " " + word;
+            if (row.length() > 0 && paint.measureText(candidate) > maxWidth) { rows.add(row.toString()); row = new StringBuilder(word); }
+            else row = new StringBuilder(candidate);
+        }
+        if (row.length() > 0) rows.add(row.toString());
+        return rows.size() > 3 ? rows.subList(0, 3) : rows;
     }
 
     public synchronized void stop() {

@@ -2402,6 +2402,11 @@ class HomeFragment : Fragment() {
             }
             ContextCompat.registerReceiver(requireContext(), autoShowUsbReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
             paintAutoShowStatus()
+            // Is Android Auto's head unit server running? Only asked while no car session is live.
+            if (com.andrerinas.openheadunit.autoshow.AutoShowState.state.value.phase !=
+                com.andrerinas.openheadunit.autoshow.AutoShowState.Phase.RUNNING) {
+                com.andrerinas.openheadunit.autoshow.AutoShowServerProbe.refresh { if (isAdded) paintAutoShowStatus() }
+            }
         }
     }
 
