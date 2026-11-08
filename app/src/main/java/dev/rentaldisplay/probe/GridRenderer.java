@@ -12,9 +12,12 @@ final class GridRenderer {
         c.scale(width / 1000f, height / 600f);
         c.drawColor(Color.rgb(12, 22, 35));
         text(c, "RENTAL DISPLAY - TOUCH GRID", 28, 26, 36, Color.WHITE);
-        text(c, state.gridVisible ? state.phase : "BACKGROUND DISPLAY TEST - phone grid hidden", 20, 26, 66, Color.rgb(105, 234, 204));
+        boolean active = state.gridVisible || state.carLive;
+        String header = state.gridVisible ? state.phase
+                : state.carLive ? "CAR TOUCH ACTIVE - phone app in background" : "BACKGROUND DISPLAY TEST - phone grid hidden";
+        text(c, header, 20, 26, 66, Color.rgb(105, 234, 204));
         text(c, shortText(state.status, 100), 17, 26, 91, Color.LTGRAY);
-        String guide = !state.gridVisible ? "Stream continues. Open the phone grid to collect touch input."
+        String guide = !active ? "Stream continues. Open the phone grid to collect touch input."
                 : state.target == 0 ? "Sequence complete. Try a drag and two fingers."
                 : "Tap glowing target " + state.target + "   |   sequence 1, 4, 9, 12, 6";
         text(c, guide, 19, 26, 117, Color.YELLOW);
@@ -24,7 +27,7 @@ final class GridRenderer {
             float top = (float) (GridState.TOP + row * (GridState.BOTTOM - GridState.TOP) / 3) * 600;
             float w = (float) (GridState.RIGHT - GridState.LEFT) * 1000 / 4;
             float h = (float) (GridState.BOTTOM - GridState.TOP) * 600 / 3;
-            boolean target = state.gridVisible && cell == state.target;
+            boolean target = active && cell == state.target;
             p.setStyle(Paint.Style.FILL); p.setColor(target ? Color.rgb(96, 76, 8) : Color.rgb(26, 44, 61));
             c.drawRect(left + 2, top + 2, left + w - 2, top + h - 2, p);
             p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(target ? 4 : 1);

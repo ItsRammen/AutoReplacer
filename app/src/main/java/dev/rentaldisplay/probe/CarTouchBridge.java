@@ -74,6 +74,7 @@ final class CarTouchBridge {
                 TsProtocol.Command c = TsProtocol.parse(line);
                 if (c.kind == TsProtocol.Kind.INIT) {
                     sw = c.sw; sh = c.sh; cw = c.cw; ch = c.ch;
+                    grid.carLive(true);
                     log.add("TS8051_INIT: phone(server)=" + sw + "x" + sh + " car(client)=" + cw + "x" + ch + " raw=\"" + shown + "\"");
                 } else if (c.kind == TsProtocol.Kind.TOUCH) {
                     touches++;
@@ -87,6 +88,7 @@ final class CarTouchBridge {
         } catch (Exception e) {
             log.add("TS8051_ERROR: " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
+        grid.carLive(false);
         log.add("TS8051_CLOSED: lines=" + lines + " touches=" + touches + " downs=" + downs);
         changed.run();
     }
@@ -98,13 +100,14 @@ final class CarTouchBridge {
         double nx = TsProtocol.normal(c.x, width), ny = TsProtocol.normal(c.y, height);
         String kind = TsProtocol.action(c.b);
         String summary = String.format(Locale.US, "CAR-8051 %s cell %d  x=%.3f y=%.3f", kind, GridState.cell(nx, ny), nx, ny);
-        GridState.Hit hit = grid.touch(nx, ny, 0, c.b == 0, true, summary);
+        grid.carLive(true);
+        GridState.Hit hit = grid.carTouch(nx, ny, 0, c.b == 0, true, summary);
         long now = android.os.SystemClock.uptimeMillis();
         boolean move = c.b == 2;
         if (move && now - lastMoveLog < 100) return;
         if (move) lastMoveLog = now;
         log.add(String.format(Locale.US,
-                "CAR_TOUCH_8051 action=%s car=%d,%d basis=%s(%dx%d) norm=%.4f,%.4f cell=%d expected=%d hit=%s deltaNorm=%.4f,%.4f gridVisible=%s raw=\"%s\"",
+                "CAR_TOUCH_8051 action=%s car=%d,%d basis=%s(%dx%d) norm=%.4f,%.4f cell=%d expected=%d hit=%s deltaNorm=%.4f,%.4f phoneGridVisible=%s raw=\"%s\"",
                 kind, c.x, c.y, basis, width, height, nx, ny, hit.cell, hit.expected, hit.correct, hit.dx, hit.dy,
                 before.gridVisible, raw));
     }

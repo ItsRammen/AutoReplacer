@@ -1,3 +1,7 @@
+# Version 0.3.8 changes
+
+- `GridState.carTouch` records car touches regardless of phone-grid visibility; `carLive` drives the car-side display. New `GridStateTest` checks cover hidden-grid phone vs car touch. All 10 suites pass; APK builds. Not yet run in the car.
+
 # Version 0.3.7 changes
 
 - Adds the type-17 safety-mask reply (unrestricted, stationary only; policy covered in `SessionWatchdogTest`) and optional portrait real-size geometry. All 10 suites pass and the APK builds; not yet run on the car.
