@@ -1,3 +1,7 @@
+# Version 0.4.1 changes
+
+- Car screen test mode and results page; `GridState.carTest` covered in `GridStateTest`; Android Auto check now requests AAP 1.2. All 11 suites pass; APK builds. Not yet run on the phone or car.
+
 # Version 0.4.0 changes
 
 - AAP version framing (`AapFrame`) covered by `tests/AapFrameTest.java`; all 11 suites pass and the APK builds against android-35. The Android Auto check and the settings screen have not been run on a phone yet. Adds a `<queries>` entry for the Android Auto package.

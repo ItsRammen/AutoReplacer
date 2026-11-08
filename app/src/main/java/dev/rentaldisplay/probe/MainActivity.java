@@ -49,8 +49,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     private UsbAccessory pending;
     private TextView status, logView;
     private Button connect, stop;
-    private boolean adbRequestSession, settingsShown;
-    private TextView aaStatus;
+    private boolean adbRequestSession, settingsShown, carOnly, resultsShown;
+    private TextView aaStatus, stats;
     private TouchGridView gridView;
     private boolean visible, uiQueued, permissionInFlight, needsReconnect, gridActive, carPhase;
     private boolean pendingGridConnect;
@@ -101,8 +101,9 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (inputs != null) inputs.registerInputDeviceListener(this, main);
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                () -> { if (gridActive) leaveGrid(); else if (settingsShown) closeSettings(); else finish(); });
-        log.add("=== Rental Display Probe 0.4.0; Android API " + Build.VERSION.SDK_INT + " ===");
+                () -> { if (gridActive) leaveGrid(); else if (settingsShown) closeSettings();
+                        else if (resultsShown) { resultsShown = false; buildUi(); refresh(); } else finish(); });
+        log.add("=== Rental Display Probe 0.4.1; Android API " + Build.VERSION.SDK_INT + " ===");
         log.add("PHONE_MODEL: " + Build.MANUFACTURER + " " + Build.MODEL);
         log.add("Stationary touch diagnostic. USB path based on the displayed 0.1.1 test; no Bluetooth-name exchange.");
         log.add("Input metadata is evidence, not proof of car origin. During CAR TEST touch only the car screen.");
@@ -117,8 +118,9 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
             view.setPadding(pad + insets.getSystemWindowInsetLeft(), pad + insets.getSystemWindowInsetTop(),
                     pad + insets.getSystemWindowInsetRight(), pad + insets.getSystemWindowInsetBottom()); return insets;
         });
+        resultsShown = false; stats = null;
         root.addView(label("Rental Display · logs & tests", 24));
-        root.addView(label("The USB stream continues with other apps open or the phone screen off. Open the grid for touch tests while parked.", 14));
+        root.addView(label("The USB stream continues with other apps open or the phone screen off. Touch tests run while parked.", 14));
         status = label("Ready", 17); status.setTextColor(Color.rgb(100,230,204)); root.addView(status);
         LinearLayout actions = new LinearLayout(this);
         actions.addView(button("Copy all logs", v -> copyLogs()),new LinearLayout.LayoutParams(0,-2,1));
@@ -126,10 +128,9 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         actions.addView(button("Save full log", v -> exportLog()),new LinearLayout.LayoutParams(0,-2,1));
         root.addView(actions);
         root.addView(label("These actions include the full retained log, even when only recent events appear below.",12));
-        root.addView(button("Phone input check (no USB)", v -> startGrid(false)));
+        connect = button("Start touch test", v -> chooseTest()); root.addView(connect);
         root.addView(button("Test settings & Android Auto check", v -> showSettings()));
         root.addView(label(settingsSummary(),12));
-        connect = button("Start car touch grid", v -> startGrid(true)); root.addView(connect);
         root.addView(button("Retry connection (keep cable plugged in)", v -> retryConnection()));
         root.addView(button("Keep streaming in background",v -> backgroundStream()));
         stop = button("Stop connection", v -> disconnect("Stopped by user")); root.addView(stop);
@@ -160,6 +161,69 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         return a != null && "Garmin".equals(a.getManufacturer()) && "Garmin USB Link Accessory".equals(a.getModel());
     }
 
+    private boolean testActive() { return gridActive || carOnly; }
+    private void chooseTest() {
+        if (host.active()) { if (carOnly) showResults(); else startGrid(true); return; }
+        new android.app.AlertDialog.Builder(this).setTitle("Touch test")
+                .setMessage("Car screen test: the grid and debug details appear only on the car; this phone shows results and logs. Touch the car screen.\n\nPhone test: the grid appears on this phone for a local touch check, with no USB.")
+                .setPositiveButton("Car screen test", (d, w) -> startCarTest())
+                .setNegativeButton("Phone test", (d, w) -> startGrid(false))
+                .setNeutralButton("Cancel", null).show();
+    }
+    /** Car-screen test: no phone grid; the car shows the grid, the phone shows live results and logs. */
+    private void startCarTest() {
+        if (permissionInFlight || logBusy || retryQueued) return;
+        carOnly = true; carPhase = true; grid.carTest(true);
+        if (host.active()) { log.add("UI_CAR_RESULTS_RESUMED: existing session retained"); showResults(); return; }
+        grid.reset(true); grid.carTest(true); host.gridVisible(false); contactTally.reset(); lastMoveLog = 0;
+        android.graphics.Point real = new android.graphics.Point();
+        getWindowManager().getDefaultDisplay().getRealSize(real);
+        phoneWidth = Math.max(real.x, real.y); phoneHeight = Math.min(real.x, real.y);
+        requestAdbForTest = adbRequestSession;
+        logDebugState("CAR_TEST_START");
+        log.add("INPUT_SETUP_MODE: " + (requestAdbForTest ? "user-selected ADB setup request" : "passive input observation"));
+        log.add("TOUCH_TEST_BEGIN: phase=CAR mode=CAR_SCREEN; grid shown only on the car; phone shows results; car touch via port 8051");
+        log.add("PHONE_VIEW: " + phoneWidth + "x" + phoneHeight + " (real display, landscape; no phone grid)");
+        showResults(); connect();
+    }
+    private String carStats() {
+        GridState.Snapshot s = grid.snapshot();
+        return "Targets " + s.complete + "/5 · downs " + s.downs + " · events " + s.events
+                + "\nCar touch link: " + (s.carLive ? "connected" : "waiting (open this app before plugging in)")
+                + "\nStream: " + (host.active() ? "running" : "not running") + " · video " + s.videoWidth + "x" + s.videoHeight
+                + "\nLast: " + s.last;
+    }
+    private void showResults() {
+        resultsShown = true; settingsShown = false;
+        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(18); root.setPadding(pad, pad, pad, pad); root.setBackgroundColor(Color.rgb(15,25,37));
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(pad + insets.getSystemWindowInsetLeft(), pad + insets.getSystemWindowInsetTop(),
+                    pad + insets.getSystemWindowInsetRight(), pad + insets.getSystemWindowInsetBottom()); return insets;
+        });
+        root.addView(label("Car screen test", 24));
+        root.addView(label("The grid is on the car screen. Tap targets 1 → 4 → 9 → 12 → 6 there, then try a drag. Results update here.", 14));
+        status = label(host.status(), 17); status.setTextColor(Color.rgb(100,230,204)); root.addView(status);
+        stats = label(carStats(), 16); stats.setTextColor(Color.WHITE); root.addView(stats);
+        LinearLayout actions = new LinearLayout(this);
+        actions.addView(button("Share full log", v -> shareLog()),new LinearLayout.LayoutParams(0,-2,1));
+        actions.addView(button("Save full log", v -> exportLog()),new LinearLayout.LayoutParams(0,-2,1));
+        root.addView(actions);
+        root.addView(button("Retry connection (keep cable plugged in)", v -> retryConnection()));
+        stop = button("Stop test", v -> { disconnect("Stopped by user"); endCarTest(); }); root.addView(stop);
+        root.addView(button("Back to main screen (test keeps running)", v -> { resultsShown = false; buildUi(); refresh(); }));
+        root.addView(label("Recent events",17));
+        logView = label("", 12); logView.setTypeface(android.graphics.Typeface.MONOSPACE); logView.setTextIsSelectable(true);
+        root.addView(logView);
+        connect = null;
+        ScrollView page = new ScrollView(this); page.setFillViewport(true); page.setBackgroundColor(Color.rgb(15,25,37));
+        page.addView(root); setContentView(page); refresh();
+    }
+    private void endCarTest() {
+        GridState.Snapshot s = grid.snapshot();
+        log.add("TOUCH_TEST_END: phase=CAR mode=CAR_SCREEN; events=" + s.events + "; downs=" + s.downs + "; targets=" + s.complete + "/5");
+        carOnly = false; grid.carTest(false); resultsShown = false; buildUi(); refresh();
+    }
     private void startGrid(boolean car) {
         if (permissionInFlight || logBusy || retryQueued) return;
         if (host.active()) {
@@ -278,7 +342,8 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         moveTaskToBack(true);
     }
     @Override public void onBackPressed() {
-        if (gridActive) leaveGrid(); else if (settingsShown) closeSettings(); else super.onBackPressed();
+        if (gridActive) leaveGrid(); else if (settingsShown) closeSettings();
+        else if (resultsShown) { resultsShown = false; buildUi(); refresh(); } else super.onBackPressed();
     }
     private android.content.SharedPreferences settings() { return getSharedPreferences("test_settings",MODE_PRIVATE); }
     private String settingsSummary() {
@@ -420,7 +485,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     }
 
     private void connect() {
-        if (host.active() || permissionInFlight || retryQueued || !visible || !gridActive) return;
+        if (host.active() || permissionInFlight || retryQueued || !visible || !testActive()) return;
         if (usb == null) { state("USB accessory mode unavailable"); return; }
         UsbAccessory[] accessories = usb.getAccessoryList();
         if (accessories == null || accessories.length == 0) {
@@ -447,7 +512,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         state("Unsupported USB accessory"); log.add("UNSUPPORTED_ACCESSORY: Garmin USB Link not found");
     }
     private void open(UsbAccessory a) {
-        if (host.active() || !visible || !gridActive) return;
+        if (host.active() || !visible || !testActive()) return;
         if (Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED
                 && !getPreferences(MODE_PRIVATE).getBoolean("notification_prompted",false)) {
             getPreferences(MODE_PRIVATE).edit().putBoolean("notification_prompted",true).apply();
@@ -457,7 +522,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         launchStream(a);
     }
     private void launchStream(UsbAccessory a) {
-        if (host.active() || !visible || !gridActive) return;
+        if (host.active() || !visible || !testActive()) return;
         if (!host.readyToReopen()) { state("Previous connection is still closing · use Retry connection"); return; }
         boolean request = requestAdbForTest && adbEnabled() == 1;
         if (requestAdbForTest && !request) {
@@ -500,7 +565,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (!visible || permissionInFlight || logBusy || retryQueued) return;
         retryQueued = true;
         final int generation = ++retryGeneration;
-        final boolean requestAdb = gridActive ? requestAdbForTest : adbRequestSession;
+        final boolean requestAdb = testActive() ? requestAdbForTest : adbRequestSession;
         log.add("SOFT_RETRY_REQUESTED: one user-requested session restart; no USB reset or automatic loop");
         if (host.active()) host.stop("User requested a fresh session without unplugging");
         state("Closing old connection · retrying with cable attached");
@@ -519,7 +584,9 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         retryQueued = false;
         log.add("SOFT_RETRY_OPEN: old workers finished; starting one new handshake on attached accessory");
         if (!grid.snapshot().phase.startsWith("CAR")) grid.reset(true);
-        carPhase = true; gridActive = true; pendingGridConnect = true; requestAdbForTest = requestAdb;
+        carPhase = true; requestAdbForTest = requestAdb;
+        if (carOnly) { grid.carTest(true); showResults(); connect(); return; }
+        gridActive = true; pendingGridConnect = true;
         showGrid();
     }
     @Override public void state(String text) {
@@ -543,8 +610,12 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     }
     private void refresh() {
         if (logView == null) return;
-        logView.setText(log.text()); connect.setText(host.active() ? "Resume car touch grid" : "Start car touch grid");
-        connect.setEnabled(!permissionInFlight && !logBusy); stop.setEnabled(host.active());
+        logView.setText(log.text());
+        if (connect != null) { connect.setText(host.active() ? (carOnly ? "Open car test results" : "Resume car touch grid") : "Start touch test");
+            connect.setEnabled(!permissionInFlight && !logBusy); }
+        if (stop != null) stop.setEnabled(host.active() || carOnly);
+        if (stats != null) stats.setText(carStats());
+        if (resultsShown && status != null) status.setText(host.status());
     }
     private boolean beginLogAction() {
         if (logBusy) { Toast.makeText(this,"Preparing full log…",Toast.LENGTH_SHORT).show(); return false; }
@@ -645,7 +716,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         host.gridVisible(gridActive); carPhase = grid.snapshot().phase.startsWith("CAR");
         log.add("UI_FOREGROUND: serviceActive="+host.active()+" gridVisible="+gridActive);
         handleUiIntent();
-        if (notificationAccessory != null && gridActive && !host.active() && usb.hasPermission(notificationAccessory)) {
+        if (notificationAccessory != null && testActive() && !host.active() && usb.hasPermission(notificationAccessory)) {
             UsbAccessory a = notificationAccessory; notificationAccessory = null; launchStream(a);
         }
         refresh();
@@ -654,20 +725,20 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         String action = getIntent().getAction();
         if (StreamService.SHOW_GRID.equals(action)) {
             getIntent().setAction(Intent.ACTION_MAIN);
-            if (host.active()) startGrid(true); else state("No active stream · start a new connection");
+            if (host.active()) { if (carOnly) showResults(); else startGrid(true); } else state("No active stream · start a new connection");
         } else if (StreamService.SHOW_LOGS.equals(action) || StreamService.SHARE_LOG.equals(action)) {
             getIntent().setAction(Intent.ACTION_MAIN);
             if (gridActive) leaveGrid();
             if (StreamService.SHARE_LOG.equals(action)) main.post(this::shareLog);
         }
         if (UsbManager.ACTION_USB_ACCESSORY_ATTACHED.equals(getIntent().getAction())) {
-            setNeedsReconnect(false); getIntent().setAction(Intent.ACTION_MAIN); startGrid(true);
+            setNeedsReconnect(false); getIntent().setAction(Intent.ACTION_MAIN); startCarTest();
         }
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent);
         if (visible && UsbManager.ACTION_USB_ACCESSORY_ATTACHED.equals(intent.getAction())) {
-            setNeedsReconnect(false); intent.setAction(Intent.ACTION_MAIN); startGrid(true);
+            setNeedsReconnect(false); intent.setAction(Intent.ACTION_MAIN); startCarTest();
         } else if (visible) handleUiIntent();
     }
     @Override protected void onStop() {

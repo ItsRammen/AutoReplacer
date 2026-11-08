@@ -34,9 +34,9 @@ final class AndroidAutoCheck {
             socket.setSoTimeout(4000);
             log.add("AA_HU_SERVER: connected to 127.0.0.1:" + AapFrame.HEAD_UNIT_SERVER_PORT);
             OutputStream out = socket.getOutputStream();
-            byte[] request = AapFrame.versionRequest(1, 1);
+            byte[] request = AapFrame.versionRequest(1, 2);
             out.write(request); out.flush();
-            log.add("AA_VERSION_REQUEST_SENT: 1.1 raw=" + AapFrame.hex(request, request.length));
+            log.add("AA_VERSION_REQUEST_SENT: 1.2 raw=" + AapFrame.hex(request, request.length));
             InputStream in = socket.getInputStream();
             byte[] buffer = new byte[256];
             int total = 0;

@@ -66,6 +66,12 @@ public final class GridStateTest {
         check(bg.snapshot().carLive && !bg.snapshot().gridVisible, "snapshot reports car-live and hidden phone grid");
         bg.carLive(false);
         check(!bg.snapshot().carLive, "car-live cleared when the connection closes");
+        GridState ct = new GridState(); ct.reset(true); ct.gridVisible(false);
+        check(!ct.snapshot().carTest, "car-screen test off by default");
+        ct.carTest(true);
+        check(ct.snapshot().carTest && !ct.snapshot().gridVisible, "car-screen test keeps the car display active without a phone grid");
+        ct.carTest(false);
+        check(!ct.snapshot().carTest, "car-screen test can end");
         System.out.println("GridStateTest: " + assertions + " assertions passed");
     }
 }

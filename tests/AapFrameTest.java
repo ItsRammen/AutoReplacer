@@ -9,6 +9,8 @@ public final class AapFrameTest {
         byte[] req = AapFrame.versionRequest(1, 1);
         byte[] expected = {0x00, 0x03, 0x00, 0x06, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01};
         check(java.util.Arrays.equals(req, expected), "version request frame: control channel, single plain fragment, id 1, v1.1");
+        byte[] v12 = AapFrame.versionRequest(1, 2);
+        check(v12[7] == 1 && v12[9] == 2, "version 1.2 request (as Open Headunit announces)");
         byte[] ok = {0x00, 0x03, 0x00, 0x08, 0x00, 0x02, 0x00, 0x01, 0x00, 0x07, 0x00, 0x00};
         AapFrame.VersionResponse r = AapFrame.parseVersionResponse(ok, ok.length);
         check(r != null && r.ok() && r.major == 1 && r.minor == 7 && r.status == 0, "version response parsed");

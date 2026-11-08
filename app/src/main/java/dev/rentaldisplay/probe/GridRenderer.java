@@ -12,8 +12,8 @@ final class GridRenderer {
         c.scale(width / 1000f, height / 600f);
         c.drawColor(Color.rgb(12, 22, 35));
         text(c, "RENTAL DISPLAY - TOUCH GRID", 28, 26, 36, Color.WHITE);
-        boolean active = state.gridVisible || state.carLive;
-        String header = state.gridVisible ? state.phase
+        boolean active = state.gridVisible || state.carLive || state.carTest;
+        String header = state.gridVisible || state.carTest ? state.phase
                 : state.carLive ? "CAR TOUCH ACTIVE - phone app in background" : "BACKGROUND DISPLAY TEST - phone grid hidden";
         text(c, header, 20, 26, 66, Color.rgb(105, 234, 204));
         text(c, shortText(state.status, 100), 17, 26, 91, Color.LTGRAY);
