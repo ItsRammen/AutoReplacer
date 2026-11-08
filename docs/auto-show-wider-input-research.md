@@ -86,7 +86,7 @@ Product context: https://easyconn.net/product
 While parked, enable Developer options > Pointer location (optionally Show taps). Confirm the overlay responds to a normal phone touch first. Keep the phone unlocked, our grid visibly open, and tap only the car. Observe the physical phone screen; our generated car video does not capture Android's pointer overlay.
 
 - Overlay responds to car taps, grid does not: evidence that input reaches the phone's display input path; investigate coordinates, focus, routing, and the app-window event logs.
-- Grid logs WINDOW_EXTERNAL_INPUT: evidence that the external event reaches the activity before view dispatch. Compare with TOUCH records.
+- Grid logs WINDOW_INPUT (any origin; see the origin label): evidence that an event reaches the activity before view dispatch. Compare with TOUCH records.
 - Neither overlay nor app responds: inconclusive about raw USB report delivery; still compatible with no reports, invalid HID data, wrong display routing, or failed ADB injection. It is not proof that Android receives no input anywhere.
 
 Disable the overlays after testing. This step observes system behavior without granting new debugging access to the rental car.

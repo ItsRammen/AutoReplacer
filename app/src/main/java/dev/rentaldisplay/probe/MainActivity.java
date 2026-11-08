@@ -100,7 +100,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 () -> { if (gridActive) leaveGrid(); else finish(); });
-        log.add("=== Rental Display Probe 0.3.3; Android API " + Build.VERSION.SDK_INT + " ===");
+        log.add("=== Rental Display Probe 0.3.4; Android API " + Build.VERSION.SDK_INT + " ===");
         log.add("PHONE_MODEL: " + Build.MANUFACTURER + " " + Build.MODEL);
         log.add("Stationary touch diagnostic. USB path based on the displayed 0.1.1 test; no Bluetooth-name exchange.");
         log.add("Input metadata is evidence, not proof of car origin. During CAR TEST touch only the car screen.");
@@ -280,13 +280,15 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     private void observeWindowInput(MotionEvent event, String path) {
         if (log == null || !visible || !host.active()) return;
         InputDevice device = event.getDevice();
-        if (device == null || !device.isExternal()) return;
+        // Do not filter on isExternal(): input injected by a head-unit ADB helper is commonly attributed to an
+        // existing touchscreen or to no device, so dropping those events would hide the path being tested.
+        String origin = InputDiagnostics.origin(device);
         int action = event.getActionMasked();
         long now = SystemClock.elapsedRealtime();
         if ((action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE)
                 && now-lastWindowMotionLog < 100) return;
         lastWindowMotionLog = now;
-        log.add("WINDOW_EXTERNAL_INPUT path="+path+" action="+MotionEvent.actionToString(action)
+        log.add("WINDOW_INPUT origin="+origin+" ("+InputOrigin.meaning(origin)+") path="+path+" action="+MotionEvent.actionToString(action)
                 +" deviceId="+event.getDeviceId()+" source=0x"+Integer.toHexString(event.getSource())
                 +" x="+event.getX()+" y="+event.getY()+" gridVisible="+gridActive
                 +" windowFocus="+hasWindowFocus()+"; observed at activity dispatch before view routing");

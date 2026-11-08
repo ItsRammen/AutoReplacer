@@ -1,10 +1,10 @@
-# AutoReplacer — Rental Display Probe 0.3.3
+# AutoReplacer — Rental Display Probe 0.3.4
 
 An Android USB accessory diagnostic for the Garmin USB Link head units used by Auto+ Show. A user has confirmed that version 0.1.1 displayed our generated video on their Taiwan Toyota Corolla Cross. This version adds a shared phone/car touch grid to test the return input path. It does not include Android Auto or Open Headunit yet.
 
 ## Install
 
-Use **Stop connection** in the old app, then install `rental-display-probe-0.3.3.apk` over the supplied earlier version. You can leave the cable attached: reopen Auto+ Show on the car if needed, then use **Retry connection** in the updated app. It uses the same signing certificate and Android package. Android 8.0+ is required. This development-signed APK may require allowing installation from the app opening it.
+Use **Stop connection** in the old app, then install `rental-display-probe-0.3.4.apk` over the supplied earlier version. You can leave the cable attached: reopen Auto+ Show on the car if needed, then use **Retry connection** in the updated app. It uses the same signing certificate and Android package. Android 8.0+ is required. This development-signed APK may require allowing installation from the app opening it.
 
 This version returns to the simpler 0.1.1 USB sequence that displayed successfully. It removes the experimental Bluetooth-name exchange and Bluetooth permissions from 0.1.2. It requests USB accessory access and uses a connected-device foreground service, a partial CPU wake lock and an optional notification permission for background streaming. It does not record the phone screen or enable USB debugging, accessibility access or root. Passive observation remains the default; an optional user-selected mode asks the car to initiate its existing ADB input setup.
 
@@ -50,7 +50,7 @@ All three 0.3.0 streams in the supplied log were ended by our own 15-second rece
 
 The parked run reported restricted=0, speed=0 and an external touchscreen was registered, but no external touch events reached the grid. This rules out an active reported restriction in that run; it does not identify whether the car sends HID reports, Android routes them, or the car's ADB helper works. All supplied sessions used passive input observation; none sent the optional ADB setup request. Phone debugging was enabled, but that alone does not establish car authorization.
 
-Additional logs now record external-device enabled state and axis ranges, activity-window focus/display ID, and external motion events entering the activity before view routing (WINDOW_EXTERNAL_INPUT). These use public APIs and observe only this app's window, not global/background input. Device registration/capabilities alone do not prove actual HID reports. No new permission or input injection is added.
+Additional logs now record external-device enabled state and axis ranges, activity-window focus/display ID, and motion events entering the activity before view routing (WINDOW_INPUT). These use public APIs and observe only this app's window, not global/background input. Device registration/capabilities alone do not prove actual HID reports. No new permission or input injection is added.
 
 For the next test, keep the phone grid open while parked, tap only the car, then leave the stream in the background for at least one minute and export the full log. An advancing car counter after the old 15-second timeout verifies the watchdog fix on this head unit. If it stops again, the recorded reason should distinguish a real transport/output failure from this now-removed timeout.
 
@@ -138,7 +138,7 @@ python3 build.py
 # Pure Java tests only:
 python3 build.py --tests-only
 # Optional if adb is already configured on your computer:
-adb install -r build/rental-display-probe-0.3.3.apk
+adb install -r build/rental-display-probe-0.3.4.apk
 ```
 
 No Gradle or third-party app libraries are needed. The script compiles Java/XML, creates DEX, aligns the APK, signs it with a local development key and verifies its signature/alignment. `build/local-debug.keystore` is not a production key; rebuilding with a different key requires uninstalling the previous APK before installing that build.
@@ -146,6 +146,16 @@ No Gradle or third-party app libraries are needed. The script compiles Java/XML,
 Tests cover full log retention above the old size limit, snapshot consistency, clipboard size handling, export-path confinement, wire framing, bounded independent USB writing, normalized target mapping across multiple screen aspect ratios, guided progress, pointer/event counts, immutable snapshots and bounded trails, phase reset, stationary-state decisions, service lifecycle transitions and preserving grid state while its UI is hidden. These do not replace Android runtime or hardware tests. Version 0.3.3 has not yet been tested on a physical phone/head unit here; foreground-service startup, notification controls, sharing, background/screen-off rendering, graceful stop/retry, orientation, input delivery and actual touch mapping need the field tests above.
 
 Earlier investigation and experimental 0.1.x changes are retained in `HISTORY-through-0.1.2.md`. The later user-confirmed display on 0.1.1 established that the experimental Bluetooth exchange was not necessary for that successful run. Intermittent earlier USB stalls remain an open issue.
+
+## Input attribution and ADB retry (0.3.4)
+
+Static inspection of Auto+ Show 1.3.5.1 (see `docs/auto-show-decompile-1.3.5.1.md`) found no phone-side touch receiver: the app mirrors the phone screen with MediaProjection, hard-codes HID as unsupported, and gates on developer options, USB debugging and a car-reported ADB flag. If the car injects touch over ADB, Android may attribute the events to the built-in touchscreen or to no device, so earlier "no external events" results do not rule out car touches.
+
+- `WINDOW_INPUT` (formerly `WINDOW_EXTERNAL_INPUT`) now logs every motion event reaching the activity during a car session, not just those from external devices. Each carries `origin=EXTERNAL|BUILT_IN|VIRTUAL|UNKNOWN_DEVICE`; `TOUCH` records carry the same label. `BUILT_IN` cannot separate a phone tap from an injected one, so keep touching only the car and use `USER_CAR_ORIGIN_CONFIRMATION`.
+- `PHONE_DEVELOPER_OPTIONS` records `development_settings_enabled`, which the inspected Garmin client checks before its ADB step.
+- In advanced mode, after the first video buffer the `useAdb` request is repeated every 2 s (at most 5 requests per session, `ADB_SETUP_REQUEST_REPEATED`) while the car has not reported ADB available, mirroring the inspected client's repeat. It stops once VIDEO_READY's seventh integer or an ADB-status message equals 1. Passive mode still sends nothing.
+
+None of this has been run on a phone/head unit.
 
 ## Phone-only input inspection (0.3.3)
 

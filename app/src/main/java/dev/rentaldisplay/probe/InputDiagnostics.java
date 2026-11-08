@@ -12,11 +12,20 @@ final class InputDiagnostics {
         try { return Settings.Global.getInt(context.getContentResolver(),Settings.Global.ADB_ENABLED,-1); }
         catch (Exception e) { return -1; }
     }
+    static int developerOptionsEnabled(Context context) {
+        try { return Settings.Global.getInt(context.getContentResolver(),Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,-1); }
+        catch (Exception e) { return -1; }
+    }
+    static String origin(InputDevice device) {
+        return device == null ? InputOrigin.classify(false,false,false)
+                : InputOrigin.classify(true,device.isExternal(),device.isVirtual());
+    }
     static String describe(InputDevice device) {
-        if (device == null) return "device=unknown";
+        String origin = origin(device);
+        if (device == null) return "device=unknown origin="+origin;
         String name = device.getName().replace('\n',' ').replace('\r',' ');
         if (name.length()>80) name = name.substring(0,80);
-        return "device=\""+name+"\" external="+device.isExternal()+" virtual="+device.isVirtual();
+        return "device=\""+name+"\" external="+device.isExternal()+" virtual="+device.isVirtual()+" origin="+origin;
     }
     static void device(ProbeLog log,String event,int id) {
         InputDevice d = InputDevice.getDevice(id);
@@ -38,6 +47,8 @@ final class InputDiagnostics {
     }
     static void capture(Context context,ProbeLog log,String reason) {
         log.add("PHONE_DEBUG_STATE reason="+reason+" adbSetting="+adbEnabled(context)+" (1=enabled,0=disabled,-1=unknown; authorization not established)");
+        log.add("PHONE_DEVELOPER_OPTIONS reason="+reason+" developmentSettings="+developerOptionsEnabled(context)
+                +" (1=enabled,0=disabled,-1=unknown; the inspected Garmin client also requires this before its ADB step)");
         try {
             Intent state = context.registerReceiver(null,new IntentFilter("android.hardware.usb.action.USB_STATE"));
             if (state == null) log.add("PHONE_USB_STATE unavailable (no sticky state)");
