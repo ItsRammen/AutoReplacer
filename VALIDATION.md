@@ -1,3 +1,8 @@
+# Version 0.3.5 changes (unit-tested logic only; Android code not built or run here)
+
+- `ContactProfile` and `ContactTally` are pure classes covered by `tests/ContactProfileTest.java`. The `MainActivity` logging edits were made without an Android SDK and have not been compiled against android.jar; build with `python3 build.py` before field use.
+- The profile heuristic assumes injected taps report pressure/size 1.0 and no touch-major; that was recalled from the shell `input` implementation and is unverified on this phone. Use the injected-tap control test to establish the real baseline.
+
 # Version 0.3.4 changes (unit-tested logic only; Android code not built or run here)
 
 - Origin labelling and bounded `useAdb` repeat are pure classes covered by `tests/InputPolicyTest.java`. The Android wiring (`MainActivity`, `UsbSession`, `InputDiagnostics`) was edited without an Android SDK in this environment and has not been compiled against android.jar; build with `python3 build.py` before field use.
