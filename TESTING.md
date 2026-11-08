@@ -10,7 +10,7 @@ In the full log exported from an earlier run (0.3.0 or later):
 
 1. Find the lines for the external touchscreens (IDs 28/29/30): `INPUT_DEVICE_*` and `EXTERNAL_INPUT_CAPABILITIES`. Note `device="…"`, `vendor=`, `product=`.
    - `vendor=65535 product=65535` and a blank or ` Touchscreen` name → the car's USB (AOA) HID touchscreen.
-   - A real device name, or `getevent -lp` later showing bus `0005` → Bluetooth or something else.
+   - A real device name, or `getevent -il` later showing bus `0005` → Bluetooth or something else.
 2. Find the 22 `TOUCH` lines naming internal device 6 (`sec_touchscreen`). Read `pressure=` and `tool=`.
    - Down/move exactly `1.00` and releases `0.00` → consistent with ADB-injected taps (`input tap`), possibly from the car.
    - Fractional values → real phone-panel touches.
@@ -23,7 +23,7 @@ Set up Wireless debugging and an on-device client (Termux with `android-tools`, 
 1. **Finger baseline:** tap **Phone input check (no USB)**, hit targets 1 → 4 → 9 → 12 → 6, drag, two fingers. Expect `origin=BUILT_IN profile=PANEL_LIKE`. Save the full log as `1-finger`.
 2. **Injected control:** open the phone grid. Read `PHONE_VIEW: W×H`. In Termux run `sleep 10; adb shell input tap X Y` (cell 1: X = 0.152·W, Y = 0.333·H) and switch to the grid before it fires. Expect the grid to advance, pressure 1.00 down / 0.00 up, size 1.00. Note the `origin` it gets. Save as `2-injected`.
 3. **Optional HID control:** plug in a USB or Bluetooth mouse and click the grid. Expect `origin=EXTERNAL`. Save as `3-hid`.
-4. `adb shell getevent -lp > devices-before.txt` (list of devices with no car attached).
+4. `adb shell getevent -il > devices-before.txt` (list of devices with no car attached).
 
 If 1 or 2 does not register, fix the probe before trusting any car result.
 
@@ -43,7 +43,7 @@ If 1 or 2 does not register, fix the probe before trusting any car result.
 2. Plug in. Choose **Rental Display Probe → Just once**, allow USB access, select Auto+ Show on the car, and start the car grid. Wait for the counter to advance.
 3. Watch the phone: did an **"Allow USB debugging?"** prompt appear? If it did, choose **Allow** (one-time) and note when.
 4. Before touching, take snapshots in Termux:
-   - `adb shell getevent -lp > devices-A.txt`
+   - `adb shell getevent -il > devices-A.txt`
    - `adb shell dumpsys input > input-A.txt`
    - `adb shell dumpsys adb > adb-A.txt`
    - `adb shell getprop sys.usb.config > usb-A.txt; adb shell getprop sys.usb.state >> usb-A.txt`
