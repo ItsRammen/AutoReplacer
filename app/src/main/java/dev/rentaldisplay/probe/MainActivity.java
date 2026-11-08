@@ -49,7 +49,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
     private UsbAccessory pending;
     private TextView status, logView;
     private Button connect, stop;
-    private CheckBox adbSetup;
+    private CheckBox adbSetup, maskReply, garminGeometry;
     private TouchGridView gridView;
     private boolean visible, uiQueued, permissionInFlight, needsReconnect, gridActive, carPhase;
     private boolean pendingGridConnect;
@@ -101,7 +101,7 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 () -> { if (gridActive) leaveGrid(); else finish(); });
-        log.add("=== Rental Display Probe 0.3.6; Android API " + Build.VERSION.SDK_INT + " ===");
+        log.add("=== Rental Display Probe 0.3.7; Android API " + Build.VERSION.SDK_INT + " ===");
         log.add("PHONE_MODEL: " + Build.MANUFACTURER + " " + Build.MODEL);
         log.add("Stationary touch diagnostic. USB path based on the displayed 0.1.1 test; no Bluetooth-name exchange.");
         log.add("Input metadata is evidence, not proof of car origin. During CAR TEST touch only the car screen.");
@@ -129,6 +129,11 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         adbSetup = new CheckBox(this); adbSetup.setText("Advanced: ask car to set up ADB touch");
         adbSetup.setTextColor(Color.WHITE); root.addView(adbSetup);
         root.addView(label("Off by default. Requires USB debugging already enabled. Authorizing a rental car for debugging gives it broader access to your phone; avoid persistent authorization.",12));
+        maskReply = new CheckBox(this); maskReply.setText("Reply to car safety state like Auto+ Show");
+        maskReply.setTextColor(Color.WHITE); maskReply.setChecked(true); root.addView(maskReply);
+        garminGeometry = new CheckBox(this); garminGeometry.setText("Advertise screen size like Auto+ Show (portrait real size)");
+        garminGeometry.setTextColor(Color.WHITE); root.addView(garminGeometry);
+        root.addView(label("Safety reply: only when the car reports unrestricted and stopped, it sends Auto+ Show's 'not masked' answer. Screen size: sends the phone's full portrait size instead of the grid view size.",12));
         connect = button("Start car touch grid", v -> startGrid(true)); root.addView(connect);
         root.addView(button("Retry connection (keep cable plugged in)", v -> retryConnection()));
         root.addView(button("Keep streaming in background",v -> backgroundStream()));
@@ -418,7 +423,13 @@ public final class MainActivity extends Activity implements UsbSession.Listener,
         try {
             Intent service = new Intent(this,StreamService.class).setAction(StreamService.START)
                     .putExtra(UsbManager.EXTRA_ACCESSORY,a).putExtra("width",phoneWidth).putExtra("height",phoneHeight)
-                    .putExtra("dpi",getResources().getDisplayMetrics().densityDpi).putExtra("request_adb",request);
+                    .putExtra("dpi",getResources().getDisplayMetrics().densityDpi).putExtra("request_adb",request)
+                    .putExtra("mask_reply",maskReply.isChecked());
+            if (garminGeometry.isChecked()) {
+                android.graphics.Point real = new android.graphics.Point();
+                getWindowManager().getDefaultDisplay().getRealSize(real);
+                service.putExtra("adv_width",Math.min(real.x,real.y)).putExtra("adv_height",Math.max(real.x,real.y));
+            }
             startForegroundService(service);
             if (Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
                 log.add("NOTIFICATIONS_HIDDEN: stream may run; use app Stop connection or Android active-app controls to stop it");

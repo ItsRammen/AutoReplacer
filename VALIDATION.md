@@ -1,3 +1,7 @@
+# Version 0.3.7 changes
+
+- Adds the type-17 safety-mask reply (unrestricted, stationary only; policy covered in `SessionWatchdogTest`) and optional portrait real-size geometry. All 10 suites pass and the APK builds; not yet run on the car.
+
 # Version 0.3.6 changes
 
 - `TsProtocol` (parser for the car's 8051 text protocol) is covered by `tests/TsProtocolTest.java`; all 10 suites pass and the APK builds against android-35. `CarTouchBridge` (socket listener) is compiled but not exercised on a phone or the car yet.

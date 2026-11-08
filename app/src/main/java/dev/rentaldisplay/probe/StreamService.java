@@ -86,7 +86,8 @@ public final class StreamService extends Service implements UsbSession.Listener,
             if (!host.lifecycle.markRunning()) { finishWithoutSession(); return START_NOT_STICKY; }
             wakeLock.acquire();
             session = new UsbSession(usb,accessory,host.log,this,host.grid,intent.getIntExtra("width",800),
-                    intent.getIntExtra("height",480),intent.getIntExtra("dpi",160),intent.getBooleanExtra("request_adb",false));
+                    intent.getIntExtra("height",480),intent.getIntExtra("dpi",160),intent.getBooleanExtra("request_adb",false),
+                    intent.getBooleanExtra("mask_reply",false),intent.getIntExtra("adv_width",0),intent.getIntExtra("adv_height",0));
             host.attach(this,session);
             host.log.add("FOREGROUND_STREAM_STARTED: connectedDevice service owns USB and encoder; wake lock held");
             session.start();

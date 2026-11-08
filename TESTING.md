@@ -1,4 +1,16 @@
-# Parked touch test — Probe 0.3.6
+# Parked touch test — Probe 0.3.7
+
+## Run order for 0.3.7 (one car trip)
+
+Before each probe run: car unplugged, LADB as shell `pkill -f UsbLinkTS`, open the probe, check `TS8051_LISTENING`, then plug in. Touch only the car for at least 30 s with the grid visible (do not swipe up on the phone), then Logs → Save full log.
+
+1. **Run 1:** safety reply on (default), screen size off.
+2. **Run 2:** safety reply on, **screen size on**.
+3. **Run 3 (control, no probe):** force-stop the probe (Settings → Apps → Rental Display Probe → Force stop), `pkill -f UsbLinkTS`, plug in and choose **Auto+ Show**, finish its setup, touch the car for 30 s, then in LADB: `logcat -d -v time | grep -i usblinkts > /sdcard/Download/usblinkts-garmin.txt`.
+
+Look for `TS8051_INIT` / `CAR_TOUCH_8051` in runs 1–2 and `a=init` / `a=ts` lines in run 3.
+
+# Port-8051 bridge test (0.3.6)
 
 ## First: port-8051 bridge test (the likely fix)
 
