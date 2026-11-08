@@ -255,6 +255,11 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         renderHome()
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                com.andrerinas.openheadunit.autoshow.AutoShowState.state.collect { paintAutoShowStatus() }
+            }
+        }
 
         activity?.findViewById<View>(R.id.status_notices)?.let { notices ->
             val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -483,6 +488,25 @@ class HomeFragment : Fragment() {
         // Cancel, the progress bar and the step come and go with the status, so the lines that fit
         // change with it, not only with the layout.
         scheduleCardFit(root)
+        paintAutoShowStatus()
+    }
+
+    /** AutoReplacer: the main button shows the car session instead of offering to start a connection. */
+    private fun paintAutoShowStatus() {
+        if (!com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) return
+        val root = view ?: return
+        val ctx = context ?: return
+        root.findViewById<View>(R.id.usb_button)?.visibility = View.GONE
+        root.findViewById<View>(R.id.wifi_button)?.visibility = View.GONE
+        // Starting Android Auto by hand would open it on the phone and fight the car session.
+        root.findViewById<View>(R.id.self_mode_button)?.visibility = View.GONE
+        root.findViewById<View>(R.id.home_primary_card)?.setOnLongClickListener(null)
+        com.andrerinas.openheadunit.autoshow.AutoShowStatusCard.apply(
+            root,
+            com.andrerinas.openheadunit.autoshow.AutoShowState.state.value,
+            onReconnect = { com.andrerinas.openheadunit.autoshow.AutoShowStatusCard.reconnect(ctx) },
+            onSaveLog = { com.andrerinas.openheadunit.autoshow.AutoShowLogSaver.save(ctx) { AppLog.i("AutoShow: %s", it) } }
+        )
     }
 
     /**
@@ -2370,6 +2394,19 @@ class HomeFragment : Fragment() {
         HomeWidgets.startListening(requireContext())
         reportBringUpOwner(started = true)
         activity?.window?.decorView?.viewTreeObserver?.addOnGlobalLayoutListener(issueBannerWatcher)
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            // The cable going in or out changes what the main button offers.
+            val filter = android.content.IntentFilter().apply {
+                addAction(android.hardware.usb.UsbManager.ACTION_USB_ACCESSORY_ATTACHED)
+                addAction(android.hardware.usb.UsbManager.ACTION_USB_ACCESSORY_DETACHED)
+            }
+            ContextCompat.registerReceiver(requireContext(), autoShowUsbReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            paintAutoShowStatus()
+        }
+    }
+
+    private val autoShowUsbReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) { paintAutoShowStatus() }
     }
 
     override fun onDestroyView() {
@@ -2382,6 +2419,9 @@ class HomeFragment : Fragment() {
 
     override fun onStop() {
         super.onStop()
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            try { requireContext().unregisterReceiver(autoShowUsbReceiver) } catch (_: Exception) {}
+        }
         HomeWidgets.stopListening()
         mainViewModel.homeShowsBringUp.value = false
         // Started again by the next render, once the home is back on screen.

@@ -72,6 +72,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var status = "Waiting for the car"
     private var carWidth = 0
     private var carHeight = 0
+    private var lastStartId = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -90,7 +91,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         } else {
             @Suppress("DEPRECATION") intent?.getParcelableExtra(UsbManager.EXTRA_ACCESSORY)
         }
-        if (accessory == null) { stopSelf(); return START_NOT_STICKY }
+        lastStartId = startId
+        if (accessory == null) { if (link == null) stopSelf(startId); return START_NOT_STICKY }
+        // The cable was plugged back in while the previous session was still closing: start afresh in this instance.
+        if (ended) resetForNewSession()
         if (link != null) { log("AUTOSHOW_START_IGNORED: a car session is already running"); return START_NOT_STICKY }
         val real = Point()
         @Suppress("DEPRECATION")
@@ -100,6 +104,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         link = GarminLink(usb, accessory, this, maxOf(real.x, real.y), minOf(real.x, real.y), dpi).also { it.start() }
         val blocker = AutoShowReadiness.carTouchBlocker(this)
         if (blocker != null) log("AUTOSHOW_READINESS: $blocker")
+        val earlierTouch = AutoShowState.state.value.touch
+        AutoShowState.reset(AutoShowState.Phase.CONNECTING, "Connecting to the car")
+        // A port-8051 failure was found when the service started, before this session began.
+        if (earlierTouch.startsWith("Unavailable")) AutoShowState.update { it.copy(touch = earlierTouch) }
         setStatus("Connecting to the car" + (blocker?.let { " · $it" } ?: ""))
         return START_NOT_STICKY
     }
@@ -108,7 +116,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun log(text: String) {
         AppLog.i("AutoShow: %s", text)
-        if (text.startsWith("TS8051_BIND_FAILED")) setStatus("Car touch unavailable: restart the phone once, then reconnect")
+        if (text.startsWith("TS8051_BIND_FAILED")) {
+            AutoShowState.update { it.copy(touch = "Unavailable: restart the phone once, then reconnect") }
+            setStatus("Car touch unavailable: restart the phone once, then reconnect")
+        }
     }
 
     override fun carBluetooth(addressOrNull: String?) {
@@ -116,7 +127,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             if (ended) return@post
             carBluetooth?.stop()
             carBluetooth = CarBluetooth(this, { text -> log(text) }, { text ->
-                main.post { bluetoothStatus = text; refreshNotification() }
+                main.post { bluetoothStatus = text; AutoShowState.update { it.copy(bluetooth = text) }; refreshNotification() }
             }).also { it.start(addressOrNull) }
         }
     }
@@ -154,12 +165,13 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             comp.videoDecoder.setSurface(surface)
             comp.videoDecoder.surfaceLock = surface
             carSessionActive = true
-            comp.videoDecoder.onFirstFrameListener = { log("AUTOSHOW_FIRST_FRAME: Android Auto picture reached the car encoder") }
+            comp.videoDecoder.onFirstFrameListener = { log("AUTOSHOW_FIRST_FRAME: Android Auto picture reached the car encoder"); AutoShowState.update { s -> s.copy(picture = true) } }
             watchStats(surface)
             log("AUTOSHOW_PROJECTION: car ${width}x$height, Android Auto ${wanted.resName}, decoder -> encoder surface")
             startService(Intent(this, AapService::class.java)
                 .setAction(AapService.ACTION_START_SELF_MODE)
                 .putExtra(AapService.EXTRA_NO_UI, true))
+            AutoShowState.update { it.copy(phase = AutoShowState.Phase.STARTING_ANDROID_AUTO) }
             setStatus("Starting Android Auto on the phone")
             watchAndroidAuto(comp)
         } catch (e: Exception) {
@@ -172,6 +184,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun carSize(phoneWidth: Int, phoneHeight: Int, carWidth: Int, carHeight: Int) {
         this.carWidth = carWidth; this.carHeight = carHeight
+        AutoShowState.update { it.copy(touch = "Connected (${carWidth}x$carHeight)") }
         setStatus("Car touch connected")
     }
 
@@ -216,6 +229,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                         launch { comp.commManager.startReading() }
                     }
                     is CommManager.ConnectionState.TransportStarted -> {
+                        AutoShowState.update { it.copy(phase = AutoShowState.Phase.RUNNING) }
                         setStatus("Android Auto is running")
                         main.postDelayed({
                             if (!ended && comp.videoDecoder.lastFrameRenderedMs == 0L && comp.commManager.isConnected) {
@@ -251,38 +265,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         main.postDelayed(task, 5000L)
     }
 
-    /** Saves this app's log to Downloads so it can be shared without a computer. */
-    private fun saveLog() {
-        Thread {
-            val name = "AutoReplacer-log-" + java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date()) + ".txt"
-            try {
-                val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "threadtime"))
-                val body = process.inputStream.bufferedReader().use { it.readText() }
-                val header = "AutoReplacer log ${java.util.Date()}\n" +
-                    "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) ${Build.MANUFACTURER} ${Build.MODEL}\n" +
-                    AutoShowReadiness.summary(this) + "\n\n"
-                val text = header + body
-                if (Build.VERSION.SDK_INT >= 29) {
-                    val values = android.content.ContentValues().apply {
-                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
-                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
-                    }
-                    val uri = contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                        ?: throw java.io.IOException("Could not create the file in Downloads")
-                    contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
-                } else {
-                    val dir = getExternalFilesDir(null) ?: filesDir
-                    java.io.File(dir, name).writeText(text)
-                }
-                log("AUTOSHOW_LOG_SAVED $name bytes=${text.length}")
-                main.post { android.widget.Toast.makeText(this, "Log saved to Downloads: $name", android.widget.Toast.LENGTH_LONG).show() }
-            } catch (e: Exception) {
-                log("AUTOSHOW_LOG_SAVE_FAILED ${e.javaClass.simpleName}: ${e.message}")
-                main.post { android.widget.Toast.makeText(this, "Could not save the log: ${e.message}", android.widget.Toast.LENGTH_LONG).show() }
-            }
-        }.start()
-    }
+    private fun saveLog() = AutoShowLogSaver.save(applicationContext) { log(it) }
 
     // --- lifecycle ------------------------------------------------------------
 
@@ -290,6 +273,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         if (ended) return
         ended = true
         log("AUTOSHOW_SHUTDOWN: $reason")
+        AutoShowState.update { it.copy(phase = AutoShowState.Phase.ENDED, headline = reason, picture = false) }
         try { link?.stop(reason) } catch (_: Exception) {}
         try { encoder?.stop() } catch (_: Exception) {}
         encoder = null
@@ -306,7 +290,20 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 startService(Intent(this, AapService::class.java).setAction(AapService.ACTION_STOP_SELF_MODE))
             } catch (_: Exception) {}
         }
-        stopSelf()
+        // Not stopSelf(): a replug may already have queued a newer start, which must keep this service alive.
+        stopSelf(lastStartId)
+    }
+
+    /** Clears what a finished session left behind so the same service instance can run the next one. */
+    private fun resetForNewSession() {
+        main.removeCallbacksAndMessages(null)
+        carBluetooth?.stop(); carBluetooth = null
+        link = null; encoder = null
+        projecting = false; ended = false
+        bluetoothStatus = null
+        touchLogged = 0
+        carWidth = 0; carHeight = 0
+        // The previous touch helper connection is gone with the cable; keep the listening socket.
     }
 
     override fun onDestroy() {
@@ -324,6 +321,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     private fun setStatus(text: String) {
         status = text
+        AutoShowState.update { it.copy(headline = text) }
         refreshNotification()
     }
 
