@@ -43,7 +43,8 @@ If 1 or 2 does not register, fix the probe before trusting any car result.
 4. Before touching, take snapshots in Termux:
    - `adb shell getevent -il > devices-A.txt`
    - `adb shell dumpsys input > input-A.txt`
-   - `adb shell dumpsys adb > adb-A.txt`
+   - `getprop | grep -iE "usb|adb" > adb-A.txt; dumpsys usb >> adb-A.txt` (`dumpsys adb` is not available on this Samsung build)
+   - `cat /data/misc/adb/adb_keys >> adb-A.txt 2>&1; logcat -d | grep -iE "adbd|AdbDebugging|UsbDebugging" | tail -60 >> adb-A.txt`
    - `adb shell getprop sys.usb.config > usb-A.txt; adb shell getprop sys.usb.state >> usb-A.txt`
 5. Tap **Inspect input · 20 seconds** on the phone grid. For 20 seconds **touch only the car**: 1 → 4 → 9 → 12 → 6, a drag, two fingers. Do not touch the phone. Watch whether Pointer location reacts.
 6. Tap **Logs** → **Record: I touched the car screen only** → **Save full log** as `A-car-passive`. Stop the captures (`kill %1 %2`).
@@ -79,7 +80,7 @@ Review files before sharing: they can contain device names and other details.
 | `getevent` shows those events but the probe logs nothing | Routing or focus: read `dumpsys input` for the device's display binding and `WINDOW_FOCUS`. |
 | `getevent` silent; probe logs `TOUCH origin=BUILT_IN/UNKNOWN_DEVICE profile=SYNTHETIC_LIKE`, pressure 1.00/0.00 | ADB injection is working. |
 | Pointer location reacts but the grid does not | The event reaches the display but not our window. |
-| Nothing anywhere; `dumpsys adb` shows no authorized key and no prompt appeared | ADB authorization is the blocker. |
+| Nothing anywhere; the adbd/AdbDebugging logcat lines show no authorized USB key and no prompt appeared | ADB authorization is the blocker. |
 | Nothing anywhere; key authorized; `sys.usb.config` includes `adb` | Head unit side, or a Samsung/Android 16 restriction. |
 | Nothing anywhere; `sys.usb.config` lacks `adb` | ADB was not exposed on that USB session; redo Stage 2 ordering. |
 
