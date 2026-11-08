@@ -3023,6 +3023,8 @@ class SettingsFragment : Fragment() {
 
     /** The note naming the settings the chosen connection types hide, or null when none are. */
     private fun scopeNotice(): SettingItem.ScopeNotice? {
+        // AutoReplacer has one connection mode, so there is no "change connection types" note to show.
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) return null
         val notice = SettingsLayoutPolicy.scopeNotice(settings.showsUsb(), settings.showsWifi())
         val (textResId, icon, filledIcon) = when (notice) {
             SettingsLayoutPolicy.ScopeNotice.NONE -> return null
@@ -3046,7 +3048,7 @@ class SettingsFragment : Fragment() {
     // The rules live in SettingsFilterPolicy so they can be tested without the views.
     private fun filterSettings(full: List<SettingItem>): List<SettingItem> =
         SettingsFilterPolicy.filter(
-            items = full,
+            items = com.andrerinas.openheadunit.autoshow.AutoShowUi.filterSettings(full),
             query = searchQuery,
             advanced = settings.isAdvancedSettingsActive,
             showsUsb = settings.showsUsb(),

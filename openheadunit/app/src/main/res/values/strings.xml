@@ -36,8 +36,8 @@
     <string name="onb_next">Next</string>
     <string name="onb_skip">Skip</string>
     <string name="onb_ready_finish">Finish</string>
-    <string name="onb_welcome_title">Welcome to Open Headunit</string>
-    <string name="onb_welcome_body">This quick setup scans your device and picks the best video, display and night mode settings for you. You can change everything later in Settings.</string>
+    <string name="onb_welcome_title">Welcome to AutoReplacer</string>
+    <string name="onb_welcome_body">AutoReplacer runs Android Auto on this phone and shows it on your car\'s Auto+ Show screen. This short setup covers the safety notice and the permissions it needs.</string>
     <string name="onb_safety_title">Safety first</string>
     <string name="onb_safety_accept">I have read and accept the terms</string>
     <string name="onb_connection_title">How do you connect?</string>

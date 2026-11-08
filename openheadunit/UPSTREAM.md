@@ -20,3 +20,4 @@ The import commit is unmodified upstream. Later commits change (so they can be r
 - `utils/Settings.kt`: an unset connection choice defaults to Self (Auto+ Show) mode only.
 - New package `app/src/main/java/com/andrerinas/openheadunit/autoshow/` and `res/xml/autoshow_accessory_filter.xml`.
 - `autoshow-tests/`: plain-Java checks for the copied Garmin link classes (`run.sh`).
+- `main/OnboardingActivity.kt` and `main/SettingsFragment.kt`: one-line hooks into `autoshow/AutoShowUi.kt`, which hides the connection-type, video-test, display, DPI, appearance, sound, automation, car-launcher, location and vehicle wizard steps, the Wireless / Automation / Input / Navigation / Theming / More features settings sections, a few individual display and USB settings, and the "change connection types" note. Set `AutoShowUi.ENABLED = false` to restore the original screens. Welcome text strings are reworded.

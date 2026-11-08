@@ -245,7 +245,8 @@ class OnboardingActivity : BaseActivity() {
      * separate phone, so it is hidden there.
      */
     private fun isStepHidden(s: Int): Boolean =
-        s == STEP_GPS && !settings.showsExternalGps()
+        com.andrerinas.openheadunit.autoshow.AutoShowUi.hidesOnboardingStep(s) ||
+            (s == STEP_GPS && !settings.showsExternalGps())
 
     /** The steps actually shown, in order, after removing the ones that do not apply. */
     private fun visibleSteps(): List<Int> = (0 until STEP_COUNT).filter { !isStepHidden(it) }
