@@ -50,4 +50,12 @@ object AutoShowUi {
     val hiddenOnboardingSteps: Set<Int> = setOf(2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
 
     fun hidesOnboardingStep(step: Int): Boolean = ENABLED && step in hiddenOnboardingSteps
+
+    /**
+     * Permission rows not needed here: "appear on top" (only used to raise Open Headunit's own
+     * screen from the background), write system settings and legacy storage.
+     */
+    val hiddenPermissionRows: Set<String> = setOf("overlay", "write_settings", "storage")
+
+    fun hidesPermissionRow(id: String): Boolean = ENABLED && id in hiddenPermissionRows
 }

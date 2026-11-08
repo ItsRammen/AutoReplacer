@@ -80,7 +80,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         val dpi = resources.displayMetrics.densityDpi
         val usb = getSystemService(USB_SERVICE) as UsbManager
         link = GarminLink(usb, accessory, this, maxOf(real.x, real.y), minOf(real.x, real.y), dpi).also { it.start() }
-        setStatus("Connecting to the car")
+        val blocker = AutoShowReadiness.carTouchBlocker(this)
+        if (blocker != null) log("AUTOSHOW_READINESS: $blocker")
+        setStatus("Connecting to the car" + (blocker?.let { " · $it" } ?: ""))
         return START_NOT_STICKY
     }
 

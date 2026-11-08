@@ -1338,7 +1338,9 @@ class OnboardingActivity : BaseActivity() {
             getString(R.string.onb_summary_vehicle_format, vehicle) + "\n" + base
         else base
         val launcher = launcherSummaryLine()
-        return head + "\n" + perms + if (launcher == null) "" else "\n" + launcher
+        val readiness = if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED)
+            "\n\n" + com.andrerinas.openheadunit.autoshow.AutoShowReadiness.summary(this) else ""
+        return head + "\n" + perms + (if (launcher == null) "" else "\n" + launcher) + readiness
     }
 
     private fun resolveAttrColor(attr: Int): Int {

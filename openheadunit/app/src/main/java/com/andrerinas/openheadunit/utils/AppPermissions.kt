@@ -83,12 +83,18 @@ object AppPermissions {
             kind = Kind.NORMAL,
             // BLUETOOTH_* are API 31+, NEARBY_WIFI_DEVICES is API 33+; requestablePermissions()
             // filters each one out on lower levels.
-            permissions = listOf(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.NEARBY_WIFI_DEVICES,
-            ),
+            // AutoReplacer keeps only BLUETOOTH_CONNECT: scan, advertise and nearby Wi-Fi are not in
+            // its manifest, so requiring them here would leave this row permanently "not granted".
+            permissions = if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+                listOf(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                listOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.NEARBY_WIFI_DEVICES,
+                )
+            },
             minSdk = Build.VERSION_CODES.S,
         ),
         Entry(
@@ -125,7 +131,7 @@ object AppPermissions {
     )
 
     /** Registry entries relevant on the current device. */
-    fun visible(): List<Entry> = ALL.filter { it.applies() }
+    fun visible(): List<Entry> = ALL.filter { it.applies() && !com.andrerinas.openheadunit.autoshow.AutoShowUi.hidesPermissionRow(it.id) }
 
     /**
      * Every not-yet-granted normal permission across the visible entries, de-duplicated, so they
