@@ -17,8 +17,8 @@ Checked 2026-11-08 by reading AOSP (`frameworks/base`, `frameworks/native` at `m
 - `tap`: DOWN with pressure **1.0**, UP with pressure **0.0**; every pointer has size **1.0**; precision 1.0/1.0; meta/edge/flags 0; touch-major never set (0); tool type finger for touchscreen source.
 - Device ID is the **first device in `InputDevice.getDeviceIds()` that supports the requested source**, else 0. On a phone with a built-in touchscreen that is normally the built-in panel, so injected taps are attributed to e.g. `sec_touchscreen` and are not external.
 - Display defaults to the default display for pointer sources.
-- Consequence for our logs: a car-injected tap looks like `origin=BUILT_IN` with pressure 1.00 on down/move, 0.00 on up, size 1.00. A real panel reports fractional pressure and a nonzero touch-major. This confirms the assumption behind `ContactProfile` (previously recalled from memory).
-- Important for existing evidence: the earlier 0.3.0 log recorded 22 `TOUCH` lines from internal device 6 (`sec_touchscreen`) and they were read as phone touches. Their `pressure=` field settles it: values of exactly 1.00 would fit injected taps, fractional values would fit the panel. That can be checked in the already-exported log without a new field test.
+- Consequence for our logs: a car-injected tap looks like `origin=BUILT_IN` with pressure 1.00 on down/move, 0.00 on up, size 1.00. A real panel reports a nonzero touch-major and a small size. **Field correction (2026-11-08): this Samsung panel reports pressure exactly 1.00, so pressure does not distinguish injection here; use size (panel ≈0.02–0.03 vs 1.00), touch-major (panel ≈2–3 vs 0) and precision (panel 3.79/1.75 vs 1.00/1.00).** This confirms the assumption behind `ContactProfile` (previously recalled from memory).
+- Important for existing evidence: the earlier 0.3.0 log recorded 22 `TOUCH` lines from internal device 6 (`sec_touchscreen`) and they were read as phone touches. Pressure alone cannot settle it (see the field correction above), and 0.3.0 did not log size or touch-major, so that log cannot decide it.
 
 ## 3. Bluetooth
 

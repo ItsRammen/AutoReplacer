@@ -11,9 +11,7 @@ In the full log exported from an earlier run (0.3.0 or later):
 1. Find the lines for the external touchscreens (IDs 28/29/30): `INPUT_DEVICE_*` and `EXTERNAL_INPUT_CAPABILITIES`. Note `device="…"`, `vendor=`, `product=`.
    - `vendor=65535 product=65535` and a blank or ` Touchscreen` name → the car's USB (AOA) HID touchscreen.
    - A real device name, or `getevent -il` later showing bus `0005` → Bluetooth or something else.
-2. Find the 22 `TOUCH` lines naming internal device 6 (`sec_touchscreen`). Read `pressure=` and `tool=`.
-   - Down/move exactly `1.00` and releases `0.00` → consistent with ADB-injected taps (`input tap`), possibly from the car.
-   - Fractional values → real phone-panel touches.
+2. Pressure does not help on this phone: the Samsung panel reports exactly `1.00`. Use `size`, `major` and `precision` (0.3.5 and later): panel ≈0.02–0.03 / ≈2–3 / 3.79,1.75; injected 1.00 / 0 / 1.00,1.00.
 3. Note `PHONE_USB_STATE` (`adb=`, `accessory=`), `PHONE_DEBUG_STATE`, and any `ADB_STATUS` / `CAR_HID_PROBE_REQUEST`.
 
 ## Stage 1 — Phone baselines (home, on Wi-Fi, no car)
