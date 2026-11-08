@@ -15,7 +15,7 @@ Any distributed build derived from this folder must be released under the AGPL v
 The import commit is unmodified upstream. Later commits change (so they can be replayed onto a fork):
 
 - `app/build.gradle.kts`: `applicationIdSuffix = ".autoreplacer"` on the `github` flavour.
-- `app/src/main/AndroidManifest.xml`: removed the root, Bluetooth scan/advertise and external-storage permissions; added `autoshow.AutoShowLauncherActivity` (USB accessory attach) and `autoshow.AutoShowService`.
+- `app/src/main/AndroidManifest.xml`: the `NAVIGATION_UPDATE` custom permission name now starts with `${applicationId}` (a fixed name made Android refuse to install next to the original app, INSTALL_FAILED_DUPLICATE_PERMISSION); removed the root, Bluetooth scan/advertise and external-storage permissions; added `autoshow.AutoShowLauncherActivity` (USB accessory attach) and `autoshow.AutoShowService`.
 - `app/src/main/res/values/strings.xml`: "Self Mode" labels are now "Auto+ Show mode" and the app is named AutoReplacer (English only; translations are untouched).
 - `utils/Settings.kt`: an unset connection choice defaults to Self (Auto+ Show) mode only.
 - New package `app/src/main/java/com/andrerinas/openheadunit/autoshow/` and `res/xml/autoshow_accessory_filter.xml`.

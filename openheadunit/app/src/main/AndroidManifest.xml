@@ -54,7 +54,7 @@
         android:required="false" />
 
     <permission
-        android:name="com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE"
+        android:name="${applicationId}.permission.NAVIGATION_UPDATE"
         android:protectionLevel="signature" />
 
     <!-- AutoReplacer (Auto+ Show) does not use root, Bluetooth discovery/advertising or external storage; their original declarations below were removed. -->
