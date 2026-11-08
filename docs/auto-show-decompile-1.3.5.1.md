@@ -35,3 +35,9 @@ Probe 0.3.4 responds by logging every window-level motion event with an origin l
 - **Dead and unrelated strings.** The `<release>.usbhid` string (`GarminUsbLinkServerApp.s`) is never read. The "HID Touch Test Performed @x,y" log in `onTouchEvent` only records the touch; nothing consumes it.
 - **No other touch code.** Searches for touch/MotionEvent/inject/swipe/pointer found only ordinary launcher UI handlers and that log line.
 - **Older releases.** Aptoide lists only 1.3.5.1 and 1.3.4.1, both already compared; 1.1.5.1 was compared earlier. Releases older than 1.1.5.1 would need another source (APKMirror blocked this environment).
+
+## Fourth pass: the safety-mask message (type 17)
+
+`a.java` (the safety-mode notifier) answers every car safety-state message (type 9) about one second later with a type-17 message `(mask, allowed)`: when the car reports not in safety mode it sends `(false, true)`; in safety mode it sends `(true, false)` if the foreground app is not on its whitelist, `(false, false)` for Google Maps, and `(false, true)` for the Garmin app itself. It is about masking video for non-allowed apps while the vehicle moves, and nothing here shows a link to touch. Probe 0.3.5 never sends it. If a future protocol-comparison test sent anything, it should be limited to the stationary, unrestricted case `(false, true)`; the probe should not claim an app is allowed while the car reports restriction or motion.
+
+Not readable from this environment: the installer page (503) and the three Mobile01 threads (403).

@@ -38,6 +38,17 @@ Checked against AOSP `main` (`packages/Shell/AndroidManifest.xml`, `InputManager
 - **Raw reads from shell.** A shell-uid process can normally read `/dev/input/event*` (the `getevent` route). That would pick up HID reports below the window layer for the HID path only. Injected (`input tap`) events never appear there.
 - **Injection path.** Events injected over ADB go to the default display; there is nothing to re-bind, so they still need a window on display 0.
 
+## 6. ADB authorization for a car acting as the ADB host
+
+From `services/core/java/com/android/server/adb/AdbDebuggingManager.java` and `Settings.java` (AOSP `main`).
+
+- The first time a host key connects, the phone shows an "Allow USB debugging?" prompt. The user chooses one-time allow or "Always allow".
+- A one-time allow lasts for that connection only, so the prompt returns on the next USB session.
+- An "Always allow" key (`AdbKeyStore.isKeyAuthorized`) is auto-authorized only while the time since its last connection is within `ADB_ALLOWED_CONNECTION_TIME`, whose default `DEFAULT_ADB_ALLOWED_CONNECTION_TIME` is **604,800,000 ms (7 days)**. A value of 0 disables the expiry (the developer option for this is reported as "Disable adb authorization timeout" on Android 11+; its exact wording on Samsung was not checked).
+- Consequences for a rental car or a car used rarely: a previously granted key can silently expire after a week, and without "Always allow" every session needs a fresh tap on the phone. The car cannot answer the prompt; if nobody accepts it the car's ADB connection stays unauthorized even while the car's ADB status reads 1 and `adb_enabled` is 1.
+- Not verified: how Samsung One UI, Auto Blocker or an unlocked/locked screen affects whether the prompt appears.
+- The tension to note: avoiding "Always allow" on a rental car is safer, but it means touch cannot work until the prompt is accepted each time.
+
 ## Correction to an earlier note
 
 An earlier message said `InputDevice.isExternal()` and `isEnabled()` are both API 29+. Checked against SDK jars: `isEnabled()` is public from API 28; `isExternal()` is public from API 29 and absent from the API 28 jar (hidden-API surface on 26–28).
