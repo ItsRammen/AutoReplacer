@@ -27,6 +27,10 @@ final class UsbSession {
     private final int phoneWidth, phoneHeight, phoneDpi;
     private final boolean requestAdbSetup;
     private boolean adbDiagnosticReported;
+    private final AtomicBoolean adbRepeatPending = new AtomicBoolean();
+    private volatile boolean carReportsAdb;
+    private volatile int adbRequests;
+    private volatile long lastAdbRequest;
     private final Object writeLock = new Object(), resourceLock = new Object();
     private final AtomicBoolean closing = new AtomicBoolean(), released = new AtomicBoolean();
     private final AtomicBoolean keepalivePending = new AtomicBoolean();
@@ -82,6 +86,7 @@ final class UsbSession {
                 if (requestAdbSetup) {
                     note("ADB_SETUP_REQUEST_BEGIN: user-selected; phone debugging was already enabled; authorization may still be required");
                     send(1,8,Wire.ints(1));
+                    adbRequests = 1; lastAdbRequest = SystemClock.elapsedRealtime();
                     note("ADB_SETUP_REQUEST_SENT: observed Garmin useAdb request; touch operation remains unverified");
                 }
             });
@@ -117,6 +122,19 @@ final class UsbSession {
                 try { send(1, 5, new byte[0]); } finally { keepalivePending.set(false); }
             })) keepalivePending.set(false);
         }
+        if (AdbRequestPolicy.due(requestAdbSetup,frames.get()>0,carReportsAdb,adbRequests,now,lastAdbRequest)
+                && adbRepeatPending.compareAndSet(false,true)) {
+            if (!queue("adb request repeat", () -> {
+                try {
+                    send(1,8,Wire.ints(1));
+                    adbRequests++; lastAdbRequest = SystemClock.elapsedRealtime();
+                    note("ADB_SETUP_REQUEST_REPEATED: attempt " + adbRequests + "/" + AdbRequestPolicy.MAX_REQUESTS
+                            + "; car has not reported ADB available (the inspected Garmin client repeats about every 2s until it does)");
+                    if (adbRequests >= AdbRequestPolicy.MAX_REQUESTS)
+                        note("ADB_SETUP_REQUEST_LIMIT: no further automatic repeats this session");
+                } finally { adbRepeatPending.set(false); }
+            })) adbRepeatPending.set(false);
+        }
         listener.changed();
     }
     private boolean queue(String label, SerialWriter.Task action) {
@@ -136,6 +154,7 @@ final class UsbSession {
                 int[] p = Wire.videoParameters(message.payload);
                 note("VIDEO_READY: " + p[0] + "x" + p[1] + " dpi=" + p[2] + " encoding=" + p[3]
                         + " version=" + p[4] + "/" + p[5] + " adbStatus=" + p[6]);
+                carReportsAdb = AdbRequestPolicy.afterVideoReady(p[6]);
                 if (videoReady) { note("Repeated VIDEO_READY ignored"); return; }
                 readyAt = SystemClock.elapsedRealtime(); videoReady = true;
                 grid.videoSize(p[0],p[1]);
@@ -192,7 +211,9 @@ final class UsbSession {
                 break;
             case 11:
                 if (message.payload.length >= 4) {
-                    note("ADB_STATUS=" + ByteBuffer.wrap(message.payload).getInt()
+                    int adbStatus = ByteBuffer.wrap(message.payload).getInt();
+                    carReportsAdb = AdbRequestPolicy.afterStatus(carReportsAdb,adbStatus);
+                    note("ADB_STATUS=" + adbStatus
                             + "; car-reported status, not proof of authorization or working input");
                     if (!adbDiagnosticReported) { adbDiagnosticReported = true; listener.inputDiagnostic("CAR_ADB_STATUS"); }
                 }

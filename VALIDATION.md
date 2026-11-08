@@ -1,3 +1,7 @@
+# Version 0.3.4 changes (unit-tested logic only; Android code not built or run here)
+
+- Origin labelling and bounded `useAdb` repeat are pure classes covered by `tests/InputPolicyTest.java`. The Android wiring (`MainActivity`, `UsbSession`, `InputDiagnostics`) was edited without an Android SDK in this environment and has not been compiled against android.jar; build with `python3 build.py` before field use.
+
 # Version 0.3.3 validation
 
 Validated 2026-11-07.

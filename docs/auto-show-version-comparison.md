@@ -50,7 +50,7 @@ All supplied sessions use passive observation and none logs ADB_SETUP_REQUEST_SE
 
 ## What would distinguish the remaining causes
 
-1. Use probe 0.3.2 with phone grid visible while parked. External axis/capability and WINDOW_EXTERNAL_INPUT logs can distinguish events arriving at the activity but missing the grid from events never reaching the app window.
+1. Use probe 0.3.2 with phone grid visible while parked. External axis/capability and WINDOW_INPUT logs can distinguish events arriving at the activity but missing the grid from events never reaching the app window.
 2. If needed, make a separately selected ADB-setup test using the existing advanced control and compare actual car-origin events. Record whether Android ever requests authorization; the status flag alone is insufficient. Authorization remains an explicit user action.
 3. If no app-window events arrive, Android system input diagnostics during car taps could distinguish missing HID reports from input mapping/routing. A normal app cannot read arbitrary /dev/input devices or global input via ordinary runtime permissions.
 4. An older-phone comparison on the same car would help separate phone/OS compatibility from head-unit failure. Installing the old app on the same Android 16 phone is a secondary control, not an expected repair: its inspected input architecture is the same, though target SDK and other behavior differ.
