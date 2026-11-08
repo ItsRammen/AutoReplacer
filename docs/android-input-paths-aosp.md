@@ -28,6 +28,16 @@ Auto+ Show 1.3.5.1 only connects HFP and A2DP (see `auto-show-decompile-1.3.5.1.
 
 All three paths end as `MotionEvent`s delivered to the window under the touch on the bound display. None is readable from a service without a window (see the earlier discussion of overlays and shell-privileged helpers).
 
+## 5. Can our app claim the device or its display binding?
+
+Checked against AOSP `main` (`packages/Shell/AndroidManifest.xml`, `InputManagerService.java`, `InputManager.java`).
+
+- **Ordinary app: no.** The AOA HID device is a kernel-created evdev node, not a USB device our app can open (the phone is the USB device side, so the USB Host API does not apply). Apps cannot read `/dev/input` and cannot choose which display an input device is bound to.
+- **Re-binding needs `ASSOCIATE_INPUT_DEVICE_TO_DISPLAY`.** It is a signature-level permission that the `shell` package holds. `InputManager.addUniqueIdAssociationByDescriptor(descriptor, displayUniqueId)` is `@hide`, `@TestApi` and behind `@FlaggedApi(FLAG_DEVICE_ASSOCIATIONS)`, so a shell-run helper could call it only if the flag is enabled in the phone's build (unverified for Samsung Android 16). Port-based associations are unlikely to help because gadget HID devices have no useful port.
+- **Monitoring input needs `MONITOR_INPUT`, which the Shell manifest does not list.** This corrects an earlier suggestion that a shell helper might use `monitorGestureInput`; that looks unavailable to shell.
+- **Raw reads from shell.** A shell-uid process can normally read `/dev/input/event*` (the `getevent` route). That would pick up HID reports below the window layer for the HID path only. Injected (`input tap`) events never appear there.
+- **Injection path.** Events injected over ADB go to the default display; there is nothing to re-bind, so they still need a window on display 0.
+
 ## Correction to an earlier note
 
 An earlier message said `InputDevice.isExternal()` and `isEnabled()` are both API 29+. Checked against SDK jars: `isEnabled()` is public from API 28; `isExternal()` is public from API 29 and absent from the API 28 jar (hidden-API surface on 26–28).
