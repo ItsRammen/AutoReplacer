@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.10
+- The notification's Touch line is now accurate: "Waiting for the car", "Connected; waiting for the first touch", then "Working", and it updates as things change (it used to say "Not connected yet" the whole time)
 ### 0.7.9
 - The touch status also warns when the car re-locks touch before the first touch has started
 ### 0.7.8

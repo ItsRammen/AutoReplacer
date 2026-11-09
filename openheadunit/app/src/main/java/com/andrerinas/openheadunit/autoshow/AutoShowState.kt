@@ -14,7 +14,7 @@ object AutoShowState {
         val phase: Phase = Phase.WAITING,
         /** One line for the current step, or why the last session ended. */
         val headline: String = "",
-        val touch: String = "Not connected yet",
+        val touch: String = "Waiting for the car",
         val bluetooth: String = "Not checked yet",
         val picture: Boolean = false,
     )

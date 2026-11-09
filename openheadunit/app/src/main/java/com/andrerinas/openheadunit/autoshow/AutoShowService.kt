@@ -94,6 +94,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         super.onCreate()
         serviceRunning = true
         goForeground()
+        // Keep the notification in step with every state change (touch, Bluetooth, Android Auto), not only the ones that set a status.
+        scope.launch { AutoShowState.state.collect { refreshNotification() } }
         // Port 8051 is held by the process-wide hub (started with the app), so the car's own touch helper cannot take it.
         AutoShowTouchHub.attach(this)
         // Phone state changes are logged with the time so they can be lined up with touch silence.
@@ -162,6 +164,13 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     override fun log(text: String) {
         AppLog.i("AutoShow: %s", text)
         AutoShowEventLog.append(this, text)
+        // The car has opened its touch link; its first touch (which sends the screen size) has not come yet.
+        if (text.startsWith("TS8051_CONNECTED")) {
+            AutoShowState.update {
+                if (it.touch == TOUCH_LOCKED_TEXT || it.touch.startsWith("Blocked") || it.touch.startsWith("Working")) it
+                else it.copy(touch = "Connected; waiting for the first touch")
+            }
+        }
         if (text.startsWith("TS8051_BIND_FAILED")) setStatus("Car touch is blocked by the car's old touch helper; trying to clear it. Unplug and replug if it stays blocked.")
     }
 
@@ -435,7 +444,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun carSize(phoneWidth: Int, phoneHeight: Int, carWidth: Int, carHeight: Int) {
         this.carWidth = carWidth; this.carHeight = carHeight
-        AutoShowState.update { it.copy(touch = "Connected (${carWidth}x$carHeight)") }
+        AutoShowState.update { it.copy(touch = "Working (car screen ${carWidth}x$carHeight)") }
         setStatus("Car touch connected")
     }
 
