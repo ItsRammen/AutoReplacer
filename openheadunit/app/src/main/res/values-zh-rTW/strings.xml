@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Open Headunit</string>
+    <string name="app_name">AutoReplacer</string>
     <string name="menu">選單</string>
     <string name="settings">設定</string>
     <string name="title_activity_settings">設定</string>
@@ -18,8 +18,8 @@
     <string name="apps">應用程式</string>
     <string name="no_apps_found">找不到應用程式</string>
     <string name="video">Android Auto</string>
-    <string name="self_mode">本機模式</string>
-    <string name="title">Open Headunit</string>
+    <string name="self_mode">Auto+ Show 模式</string>
+    <string name="title">AutoReplacer</string>
     <string name="remove">移除</string>
     <string name="usb">USB</string>
     <string name="wifi">Wi-Fi</string>
@@ -250,8 +250,8 @@
 
     <!-- Categories for SettingsFragment -->
     <string name="category_general">一般</string>
-    <string name="auto_start_self_mode">自動啟動自我模式</string>
-    <string name="auto_start_self_mode_description">開啟應用程式時自動啟動自我模式。</string>
+    <string name="auto_start_self_mode">自動啟動 Auto+ Show 模式</string>
+    <string name="auto_start_self_mode_description">開啟應用程式時自動啟動 Auto+ Show 模式。</string>
     <string name="usb_auto_connect">USB 自動連線</string>
     <string name="usb_auto_connect_description">開啟應用程式時，自動連線至已知的 USB 裝置。</string>
     <string name="auto_start_bt_label">藍牙連線時自動啟動</string>
@@ -400,7 +400,7 @@
     <!-- Info Settings -->
     <string name="category_info">資訊</string>
     <string name="about">關於與支援</string>
-    <string name="about_description">取得 Open Headunit 的詳細資訊。</string>
+    <string name="about_description">取得 AutoReplacer 的詳細資訊。</string>
     <string name="version">版本</string>
     <string name="check_for_updates">檢查更新</string>
     <string name="check_for_updates_description">檢查是否有更新的 Open Headunit 版本。</string>
@@ -414,8 +414,8 @@
     <string name="open_play_store">開啟 Play 商店</string>
     <string name="open_github_releases">開啟 GitHub Releases</string>
     <string name="download_apk">下載 APK</string>
-    <string name="about_title">關於 Open Headunit</string>
-    <string name="copyright">© 2025-%d André Rinas</string>
+    <string name="about_title">關於 AutoReplacer</string>
+    <string name="copyright">基於 Open Headunit，© 2025-%d André Rinas。AutoReplacer 的修改由其貢獻者完成。</string>
 
     <!-- Safety Disclaimer -->
     <string name="disclaimer_title">安全與責任</string>
@@ -425,7 +425,7 @@
         <b>1. 專注於道路上</b><br/>
         行駛時使用此軟體可能會分散注意力，造成危險。請務必將安全駕駛放在首位，並遵守所有當地交通法規。僅在安全的情況下使用此應用程式。<br/><br/>
         <b>2. 責任限制</b><br/>
-        Open Headunit 係以「現狀」提供，並不附帶任何形式的保證。開發者對因使用本軟體而導致的任何事故、車輛／裝置損壞，或法律後果，概不承擔任何責任。<br/><br/>
+        AutoReplacer（基於 Open Headunit）係以「現狀」提供，並不附帶任何形式的保證。開發者對因使用本軟體而導致的任何事故、車輛／裝置損壞，或法律後果，概不承擔任何責任。<br/><br/>
         <b>3. 無隸屬關係</b><br/>
         本專案為獨立的開源計畫，與 Google LLC 或 Android Auto 品牌無隸屬、無背書、亦無任何關聯。
      ]]></string>
@@ -474,8 +474,8 @@
     <string name="usb_disconnect_toast">Android Auto 已中斷連線：與手機的 USB 連線失敗。如果經常發生，請嘗試更換傳輸線、USB 連接埠，或使用 USB 集線器。</string>
     <string name="reset_usb_option">重設 USB 連線</string>
     <string name="reset_usb_timeout">找不到 USB 裝置，請檢查連線。</string>
-    <string name="notification_service_running">Open Headunit 執行中</string>
-    <string name="notification_projection_active">正在投射 Android Auto</string>
+    <string name="notification_service_running">AutoReplacer 執行中</string>
+    <string name="notification_projection_active">Android Auto 已連線</string>
     <string name="shortcut_connect_title">連線</string>
     <string name="shortcut_connect_desc">自動連線至上次使用的手機</string>
     <string name="shortcut_disconnect_title">中斷連線</string>
@@ -657,8 +657,8 @@
     <string name="native_aa_poke_not_running">此主機的無線藍牙未執行。請檢查設定。</string>
     <string name="not_supported_nativeaa">似乎不支援原生無線連接</string>
     <string name="not_supported_nativeaa_desc">您的裝置可能不支援原生無線所需的藍牙或 Wi-Fi 功能。您仍可嘗試，但若失敗，請改用「Wireless Helper」或「Auto (Headunit Server)」模式。</string>
-    <string name="shortcut_selfmode_title">本機模式</string>
-    <string name="shortcut_selfmode_desc">在此裝置上啟動 Android Auto</string>
+    <string name="shortcut_selfmode_title">Auto+ Show 模式</string>
+    <string name="shortcut_selfmode_desc">在這支手機上執行 Android Auto，並顯示在車機上</string>
     <string name="wait_for_wifi">啟動 Wi-Fi Direct 前先等待 Wi-Fi</string>
     <string name="wait_for_wifi_description">開機時，先等待 Wi-Fi 連線完成再啟動 Wi-Fi Direct。若主機開機後需要幾秒鐘才能連上 Wi-Fi，請啟用此選項。</string>
     <string name="wait_for_wifi_summary">開機時先等待 Wi-Fi，再啟動 WiFi Direct。</string>
@@ -796,7 +796,7 @@
     <string name="settings_backup_saved_to">設定備份已儲存至：\n%1$s</string>
     <string name="share_settings_backup">分享設定備份</string>
     <string name="import_settings">匯入設定</string>
-    <string name="import_settings_description">從 Open Headunit 備份還原設定。</string>
+    <string name="import_settings_description">從 AutoReplacer 備份還原設定。</string>
     <string name="import_settings_app_folder">從應用程式備份資料夾匯入</string>
     <string name="import_settings_downloads">從下載匯入</string>
     <string name="import_settings_choose_file">選擇備份檔案</string>
@@ -804,8 +804,8 @@
     <string name="settings_imported">已匯入設定：套用 %1$d 項、略過 %2$d 項</string>
     <string name="settings_import_failed">設定匯入失敗：%1$s</string>
     <string name="no_settings_backups_title">找不到備份</string>
-    <string name="no_settings_backups_message">在應用程式備份資料夾中找不到 Open Headunit 備份。請先匯出一個備份，然後從這裡匯入。</string>
-    <string name="no_settings_backups_downloads_message">在下載中找不到 Open Headunit 備份。請先將備份匯出到下載，然後從這裡匯入。</string>
+    <string name="no_settings_backups_message">在應用程式備份資料夾中找不到 AutoReplacer 備份。請先匯出一個備份到應用程式備份資料夾，然後從這裡匯入。</string>
+    <string name="no_settings_backups_downloads_message">在「下載」中找不到 AutoReplacer 備份。請先將備份匯出到「下載」，然後從這裡匯入。</string>
     <string name="no_file_picker_title">沒有可用的檔案選擇器</string>
     <string name="no_file_picker_message">此裝置沒有相容的檔案選擇器。你可以改用「下載」或應用程式備份資料夾。</string>
     <string name="storage_permission_denied_backup">儲存權限被拒絕。無法使用下載資料夾。</string>
@@ -915,8 +915,8 @@
     <string name="onb_next">下一步</string>
     <string name="onb_skip">略過</string>
     <string name="onb_ready_finish">完成</string>
-    <string name="onb_welcome_title">歡迎使用 Open Headunit</string>
-    <string name="onb_welcome_body">此快速設定會掃描你的裝置，並為你挑選最佳的視訊、顯示及夜間模式設定。你之後可隨時在「設定」中變更所有項目。</string>
+    <string name="onb_welcome_title">歡迎使用 AutoReplacer</string>
+    <string name="onb_welcome_body">AutoReplacer 會在這支手機上執行 Android Auto，並顯示在你車上的 Auto+ Show 螢幕。這個簡短的設定會說明安全注意事項與所需的權限。</string>
     <string name="onb_safety_title">安全第一</string>
     <string name="onb_safety_accept">我已閱讀並接受條款</string>
     <string name="onb_connection_title">要如何連線？</string>
@@ -1000,7 +1000,7 @@
     <string name="dpi_portrait_override_note">%1$d DPI 會依所選值傳送。直向時，超過 %2$d DPI 後，Android Auto 中的 Google Maps 可能會忽略觸控。</string>
     <string name="dpi_floor_override_note">%1$d DPI 會依所選值傳送。超過 %2$d DPI 後，畫布會小於 Android Auto 所需的 748x450 dp，可能會顯示精簡版面配置。</string>
     <string name="onb_conn_usb_label">USB（或轉接器）</string>
-    <string name="onb_connection_self_detail">本機模式會在這台裝置上執行 Android Auto，不需連接手機。</string>
+    <string name="onb_connection_self_detail">Auto+ Show 模式會在這支手機上執行 Android Auto，並顯示在你車上的 Auto+ Show 螢幕。</string>
     <string name="connection_kind_all">全部</string>
     <string name="onb_connection_all_detail">同時顯示 USB 與 Wi-Fi 設定。</string>
     <string name="onb_connection_warning">選擇連線類型會在基本與進階模式中隱藏不適用的設定。若要再次顯示，稍後在連線設定中選擇其他模式。</string>
@@ -1184,7 +1184,7 @@
     <string name="add_to_blacklist">加入黑名單</string>
     <string name="remove_from_blacklist">從黑名單移除</string>
     <string name="usb_device_action_title">USB 裝置操作</string>
-    <string name="btn_color_self_mode">本機模式按鈕</string>
+    <string name="btn_color_self_mode">Auto+ Show 模式按鈕</string>
     <string name="btn_color_usb">USB 按鈕</string>
     <string name="btn_color_wifi">Wi-Fi 按鈕</string>
     <string name="btn_reset_colors">重設所有按鈕顏色</string>
@@ -1838,4 +1838,132 @@
     <string name="esp32_relay_end_aa_on_disconnect_summary">中繼器連續兩次無回應時結束工作階段</string>
     <string name="esp32_relay_end_aa_on_disconnect_description">本主機每 2 秒向中繼器傳送一次狀態檢查。如果連續兩次檢查都沒有回應,Android Auto 工作階段將結束。</string>
     <string name="esp32_relay_phase_failed">失敗:%1$s</string>
+
+    <!-- AutoReplacer -->
+    <string name="category_car_touch">車機觸控</string>
+    <string name="car_touch_calibration">觸控校正</string>
+    <string name="car_touch_calibration_description">在車機螢幕上點選十字，讓觸控位置更準確。需要連接車機。</string>
+    <string name="car_touch_calibration_reset">重設觸控校正</string>
+    <string name="car_touch_recalibrate_title">要重新校正嗎？</string>
+    <string name="car_touch_recalibrate_message">新的校正完成之前，會繼續使用目前的校正，且會保留以便你還原。你需要連接車機，並讓 Android Auto 顯示畫面。</string>
+    <string name="car_touch_recalibrate_confirm">校正</string>
+    <string name="car_touch_reset_title">要重設觸控校正嗎？</string>
+    <string name="car_touch_reset_message">車機上的觸控會改回估算值，邊緣附近可能會有偏差。之後你可以還原此校正。</string>
+    <string name="car_touch_reset_confirm">重設</string>
+    <string name="car_touch_reset_done">校正已重設。你可以在「設定」中還原。</string>
+    <string name="car_touch_calibration_restore">還原先前的校正</string>
+    <string name="car_touch_calibration_restore_description">還原：%1$s</string>
+    <string name="car_touch_restore_done">已還原先前的校正。</string>
+    <string name="car_touch_calibration_reset_description">在你再次校正之前，改用估算值。</string>
+    <string name="support_rules_english_title">所有貼文皆使用英文</string>
+    <string name="audio_matching_option">%1$s\n(%2$s)</string>
+    <!-- AutoReplacer: text shown by the car session -->
+    <string name="as_title_showing">已顯示於車機</string>
+    <string name="as_title_aa_starting">Android Auto 啟動中</string>
+    <string name="as_title_connecting">連線中</string>
+    <string name="as_title_disconnected">車機已中斷連線</string>
+    <string name="as_title_cable">偵測到傳輸線</string>
+    <string name="as_title_waiting">等待車機</string>
+    <string name="as_sub_tap_reconnect">點一下「重新連線」以開始車機連線</string>
+    <string name="as_sub_plug_in">請將手機插入 Auto+ Show 的傳輸線，這裡不需要手動啟動任何東西。</string>
+    <string name="as_ended_cable_in">點一下「重新連線」，或拔除後重新插入傳輸線。</string>
+    <string name="as_ended_cable_out">請重新插入傳輸線以再次開始。</string>
+    <string name="as_detail">觸控：%1$s\n藍牙：%2$s</string>
+    <string name="as_kicker_setup">需要設定</string>
+    <string name="as_kicker_normal">%1$s · Auto+ Show</string>
+    <string name="as_warning_title">請先啟動 Android Auto 的伺服器</string>
+    <string name="as_server_down_headline">Android Auto 的主機伺服器未執行。</string>
+    <string name="as_server_down_steps">請在手機上開啟 Android Auto，進入「開發人員設定」，再選擇「Start head unit server」（啟動主機伺服器）。請在插入傳輸線之前啟動。</string>
+    <string name="as_join">%1$s%2$s</string>
+    <string name="as_open_aa">開啟 Android Auto</string>
+    <string name="as_reconnect">重新連線</string>
+    <string name="as_more">更多</string>
+    <string name="as_save_log">儲存記錄檔</string>
+    <string name="as_calibrate_menu">校正車機觸控</string>
+    <string name="as_mark">標記</string>
+    <string name="as_connecting">正在連線至車機</string>
+    <string name="as_reconnecting">正在重新連線至車機（Android Auto 持續執行中）</string>
+    <string name="as_connecting_with_hint">正在連線至車機。%1$s</string>
+    <string name="as_touch_connected">已連線，等待第一次觸控</string>
+    <string name="as_touch_working">運作中（車機螢幕 %1$d×%2$d）</string>
+    <string name="as_touch_blocked">被車機舊的觸控輔助程式佔用，正在嘗試清除</string>
+    <string name="as_touch_waiting_first">等待車機的第一次觸控</string>
+    <string name="as_status_touch_connected">車機觸控已連線</string>
+    <string name="as_status_touch_blocked">車機觸控被車機舊的觸控輔助程式佔用，正在嘗試清除。若持續被佔用，請拔除後重新插入。</string>
+    <string name="as_bt_not_checked">尚未檢查</string>
+    <string name="as_standby">%1$s Android Auto 會保持待命 %2$d 秒，請重新插入傳輸線。</string>
+    <string name="as_aa_running">Android Auto 執行中</string>
+    <string name="as_waiting_aa_back">等待 Android Auto 恢復</string>
+    <string name="as_stopped_user">已由使用者停止</string>
+    <string name="as_car_no_return">車機沒有重新連線</string>
+    <string name="as_picture_changed">車機的畫面設定已變更，請重新插入傳輸線</string>
+    <string name="as_encode_failed">手機無法為車機編碼畫面，請重新插入。</string>
+    <string name="as_unsupported_format">車機要求的畫面格式 AutoReplacer 不支援。</string>
+    <string name="as_aa_start_failed">無法在手機上啟動 Android Auto（%1$s），請重新插入。</string>
+    <string name="as_aa_no_answer">Android Auto 沒有回應</string>
+    <string name="as_restart_failed">手機無法重新啟動車機的畫面，請重新插入。</string>
+    <string name="as_aa_restarted">Android Auto 已重新啟動，正在重新連線。</string>
+    <string name="as_aa_not_answering_restart">Android Auto 沒有回應。請在 Android Auto 的開發人員設定中停止主機伺服器，然後再啟動一次。</string>
+    <string name="as_aa_not_answering_start">Android Auto 沒有回應。請在手機上開啟 Android Auto，進入「開發人員設定」，再選擇「Start head unit server」（啟動主機伺服器）。</string>
+    <string name="as_cal_stopped_disconnected">觸控校正已停止：車機已中斷連線</string>
+    <string name="as_cal_timed_out">觸控校正逾時</string>
+    <string name="as_cal_need_session">請先開始車機連線，並等待 Android Auto 畫面出現</string>
+    <string name="as_cal_look">請看車機螢幕，並點選每個十字的中心</string>
+    <string name="as_cal_start_failed">無法開始觸控校正</string>
+    <string name="as_cal_done">觸控校正完成：%1$s</string>
+    <string name="as_cal_bad_taps">點選的位置看起來不正確，請從第一個十字重新開始。</string>
+    <string name="as_cal_screen_title">觸控校正</string>
+    <string name="as_cal_screen_step">第 %1$d / %2$d 個：請點選十字的中心</string>
+    <string name="as_touch_calibrated">已校正（寬度 %1$.2f%2$+.2f，高度 %3$.2f%4$+.2f）</string>
+    <string name="as_touch_not_calibrated">尚未校正（依你的點選位置估算）</string>
+    <string name="as_touch_values">寬度 %1$.2f%2$+.2f，高度 %3$.2f%4$+.2f</string>
+    <string name="as_log_saved">記錄檔已儲存至「下載」：%1$s</string>
+    <string name="as_log_failed">無法儲存記錄檔：%1$s</string>
+    <string name="as_log_create_failed">無法在「下載」中建立檔案</string>
+    <string name="as_marked">已在記錄檔標記，時間 %1$s</string>
+    <string name="as_bt_no_address">車機未提供藍牙位址</string>
+    <string name="as_bt_none">這支手機沒有藍牙</string>
+    <string name="as_bt_permission">請允許「附近的裝置」權限以使用車機藍牙</string>
+    <string name="as_bt_turn_on">請開啟藍牙以使用車機音訊</string>
+    <string name="as_bt_pairing">正在與車機配對：請在手機與車機上確認</string>
+    <string name="as_bt_paired_waiting">已與車機配對，等待車機音訊連線</string>
+    <string name="as_bt_audio_both">車機音訊已連線（媒體與通話）</string>
+    <string name="as_bt_audio_media">車機音訊已連線（媒體）</string>
+    <string name="as_bt_audio_calls">車機僅連線通話，媒體音訊尚未連線</string>
+    <string name="as_bt_audio_none">已配對，但車機尚未連線音訊。請在手機的藍牙設定中選擇車機</string>
+    <string name="as_bt_pair_failed_start">無法開始配對，請在手機的藍牙設定中配對車機</string>
+    <string name="as_bt_pair_incomplete">與車機的配對未完成，請在手機的藍牙設定中配對</string>
+    <string name="as_no_paired_bt">找不到已配對的藍牙裝置</string>
+    <string name="as_check_aa">已安裝 Android Auto</string>
+    <string name="as_check_aa_hint">請從 Play 商店安裝或更新 Android Auto。</string>
+    <string name="as_check_dev">已開啟開發人員選項</string>
+    <string name="as_check_dev_hint">設定 > 關於手機 > 連續點選「版本號碼」七次。</string>
+    <string name="as_check_usb">已開啟 USB 偵錯</string>
+    <string name="as_check_usb_hint">設定 > 開發人員選項 > USB 偵錯。車機觸控需要此功能。請開啟後，拔除並重新插入傳輸線。</string>
+    <string name="as_check_notif">已允許通知</string>
+    <string name="as_check_notif_hint">請允許通知，才能看到車機連線狀態。</string>
+    <string name="as_check_ok">✓ %1$s</string>
+    <string name="as_check_bad">✗ %1$s：%2$s</string>
+    <string name="as_blocker_dev">請開啟開發人員選項以使用車機觸控</string>
+    <string name="as_blocker_usb">請開啟 USB 偵錯以使用車機觸控，然後重新插入傳輸線</string>
+    <string name="as_dc_not_ready">車機尚未準備好接收影像。請在車機上開啟 Auto+ Show，然後重新插入。</string>
+    <string name="as_dc_no_response">車機沒有回應。請在車機上開啟 Auto+ Show，然後重新插入。</string>
+    <string name="as_dc_no_first_buffer">車機一直沒有開始顯示影像，請重新插入。</string>
+    <string name="as_dc_no_progress">影像已無法傳送到車機，請重新插入。</string>
+    <string name="as_dc_moving">車機回報車輛正在行駛，因此 AutoReplacer 已停止。請在停車時使用。</string>
+    <string name="as_dc_usb_open">無法開啟 USB 連線。請關閉其他使用 USB 的應用程式，然後重新插入。</string>
+    <string name="as_dc_stalled">車機停止接收影像。請檢查傳輸線，然後重新插入。</string>
+    <string name="as_dc_lost">與車機的 USB 連線已中斷（傳輸線被拔除，或車機重新啟動了 USB）。</string>
+    <string name="as_dc_error">與車機的連線意外結束。</string>
+    <string name="as_dc_closed">車機關閉了連線。</string>
+    <string name="as_aa_starting_phone">正在手機上啟動 Android Auto</string>
+    <string name="as_usb_access_toast">請允許 AutoReplacer 使用 USB，然後重新連接傳輸線</string>
+    <string name="as_about_intro">在這支手機上執行 Android Auto，並顯示在配備 Auto+ Show 的車機螢幕上。</string>
+    <string name="as_about_source">原始碼與問題回報：</string>
+    <string name="as_about_license">以 GNU Affero 通用公共授權條款第 3 版（AGPL v3）授權，全文如下。</string>
+    <string name="as_about_built_on">基於 Open Headunit</string>
+    <string name="as_about_open_headunit_by">Open Headunit，作者 Andr\u00e9 Rinas：</string>
+    <string name="as_about_continues">承續自 Michael A. Reid 的 Headunit：</string>
+    <string name="as_about_changes">AutoReplacer 修改了連線、影像輸出、觸控與畫面以支援 Auto+ Show，其餘皆為他們的成果。謝謝。</string>
+    <string name="as_about_upstream_changelog">Open Headunit 自己的更新記錄</string>
 </resources>

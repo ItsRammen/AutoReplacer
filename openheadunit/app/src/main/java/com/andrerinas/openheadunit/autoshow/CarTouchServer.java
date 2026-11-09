@@ -24,6 +24,10 @@ public final class CarTouchServer {
 
     private final Listener listener;
     private volatile boolean started, stopped;
+    private volatile boolean carConnected;
+
+    /** True while the car's forwarded connection is open (the car's ADB path is alive). */
+    public boolean isCarConnected() { return carConnected; }
     private volatile ServerSocket server;
     private int cw, ch;
 
@@ -96,6 +100,7 @@ public final class CarTouchServer {
         long bytes = 0;
         boolean firstBytes = true;
         listener.log("TS8051_CONNECTED " + socket.getRemoteSocketAddress());
+        carConnected = true;
         try (Socket sock = socket) {
             sock.setSoTimeout(30000);
             java.io.InputStream in = sock.getInputStream();
@@ -134,6 +139,7 @@ public final class CarTouchServer {
         } catch (Exception e) {
             listener.log("TS8051_ERROR " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
+        carConnected = false;
         listener.log("TS8051_CLOSED lines=" + lines + " touches=" + touches + " bytes=" + bytes);
     }
 

@@ -22,7 +22,7 @@
 # Version 0.3.5 changes (unit-tested logic only; Android code not built or run here)
 
 - `ContactProfile` and `ContactTally` are pure classes covered by `tests/ContactProfileTest.java`. The `MainActivity` logging edits were made without an Android SDK and have not been compiled against android.jar; build with `python3 build.py` before field use.
-- The profile heuristic assumes injected taps report pressure/size 1.0 and no touch-major. This now matches AOSP `InputShellCommand` (see `docs/android-input-paths-aosp.md`), but is still unconfirmed on this phone; the injected-tap control test establishes the real baseline.
+- The profile heuristic assumes injected taps report pressure/size 1.0 and no touch-major. This now matches AOSP `InputShellCommand` (see `docs/research/android-input-paths-aosp.md`), but is still unconfirmed on this phone; the injected-tap control test establishes the real baseline.
 
 # Version 0.3.4 changes (unit-tested logic only; Android code not built or run here)
 

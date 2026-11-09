@@ -2,6 +2,7 @@ package com.andrerinas.openheadunit.autoshow
 
 import android.content.Context
 import android.provider.Settings
+import com.andrerinas.openheadunit.R
 import androidx.core.app.NotificationManagerCompat
 
 /**
@@ -22,26 +23,25 @@ object AutoShowReadiness {
             context.packageManager.getPackageInfo(ANDROID_AUTO_PACKAGE, 0).versionName
         } catch (_: Exception) { null }
         return listOf(
-            Check("Android Auto installed", androidAuto != null,
-                "Install or update Android Auto from the Play Store."),
-            Check("Developer options on", global(context, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED),
-                "Settings > About phone > tap Build number seven times."),
-            Check("USB debugging on", global(context, Settings.Global.ADB_ENABLED),
-                "Settings > Developer options > USB debugging. Car touch needs it. Turn it on, then unplug and replug the cable."),
-            Check("Notifications allowed", NotificationManagerCompat.from(context).areNotificationsEnabled(),
-                "Allow notifications so the car connection status is visible.")
+            Check(context.getString(R.string.as_check_aa), androidAuto != null, context.getString(R.string.as_check_aa_hint)),
+            Check(context.getString(R.string.as_check_dev), global(context, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED),
+                context.getString(R.string.as_check_dev_hint)),
+            Check(context.getString(R.string.as_check_usb), global(context, Settings.Global.ADB_ENABLED),
+                context.getString(R.string.as_check_usb_hint)),
+            Check(context.getString(R.string.as_check_notif), NotificationManagerCompat.from(context).areNotificationsEnabled(),
+                context.getString(R.string.as_check_notif_hint))
         )
     }
 
     /** One line per check: a tick or cross, and the fix when it is not met. */
     fun summary(context: Context): String = checks(context).joinToString("\n") {
-        if (it.ok) "✓ ${it.title}" else "✗ ${it.title}: ${it.hint}"
+        if (it.ok) context.getString(R.string.as_check_ok, it.title) else context.getString(R.string.as_check_bad, it.title, it.hint)
     }
 
     /** What to tell the user right now if car touch cannot work yet; null when the basics are on. */
     fun carTouchBlocker(context: Context): String? = when {
-        !global(context, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED) -> "Turn on Developer options for car touch"
-        !global(context, Settings.Global.ADB_ENABLED) -> "Turn on USB debugging for car touch, then replug the cable"
+        !global(context, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED) -> context.getString(R.string.as_blocker_dev)
+        !global(context, Settings.Global.ADB_ENABLED) -> context.getString(R.string.as_blocker_usb)
         else -> null
     }
 }

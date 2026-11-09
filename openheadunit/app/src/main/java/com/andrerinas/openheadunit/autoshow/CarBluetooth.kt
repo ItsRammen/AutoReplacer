@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.autoshow
 
+import com.andrerinas.openheadunit.R
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -52,7 +53,7 @@ class CarBluetooth(
         } catch (_: Exception) { false }
         val action = BluetoothPlan.decide(valid, permitted, adapter != null, adapter?.isEnabled == true, bonded)
         log("CAR_BLUETOOTH car=${BluetoothPlan.mask(carAddress ?: "")} plan=$action permission=$permitted")
-        status(BluetoothPlan.describe(action))
+        status(AutoShowText.bluetooth(context, action))
         // Follow the car's Bluetooth for the whole session, so the status stays right when it changes
         // (the car connects late, or the user connects it by hand in the phone's settings).
         if (valid && permitted && adapter != null) watchEvents(carAddress!!)
@@ -67,10 +68,10 @@ class CarBluetooth(
         try {
             val started = adapter.getRemoteDevice(car).createBond()
             log("CAR_BLUETOOTH_PAIRING started=$started")
-            if (!started) status("Could not start pairing; pair the car in the phone's Bluetooth settings")
+            if (!started) status(context.getString(R.string.as_bt_pair_failed_start))
         } catch (e: Exception) {
             log("CAR_BLUETOOTH_PAIRING_FAILED ${e.javaClass.simpleName}: ${e.message}")
-            status("Could not start pairing; pair the car in the phone's Bluetooth settings")
+            status(context.getString(R.string.as_bt_pair_failed_start))
         }
     }
 
@@ -83,10 +84,10 @@ class CarBluetooth(
                 if (device == null || !device.address.equals(car, ignoreCase = true)) return
                 if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
                     when (intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
-                        BluetoothDevice.BOND_BONDED -> { log("CAR_BLUETOOTH_BONDED"); status(BluetoothPlan.describe(BluetoothPlan.Action.CHECK_AUDIO)) }
+                        BluetoothDevice.BOND_BONDED -> { log("CAR_BLUETOOTH_BONDED"); status(AutoShowText.bluetooth(context, BluetoothPlan.Action.CHECK_AUDIO)) }
                         BluetoothDevice.BOND_NONE -> {
                             log("CAR_BLUETOOTH_NOT_PAIRED")
-                            status("Pairing with the car was not completed; pair it in the phone's Bluetooth settings")
+                            status(context.getString(R.string.as_bt_pair_incomplete))
                             return
                         }
                         else -> return
@@ -139,7 +140,7 @@ class CarBluetooth(
             val m = media ?: return
             val h = calls ?: return
             if (stopped) return
-            status(BluetoothPlan.audioStatus(m, h))
+            status(AutoShowText.audio(context, BluetoothPlan.audio(m, h)))
             if (m != lastMedia || h != lastCalls) {
                 log("CAR_BLUETOOTH_AUDIO media=$m calls=$h reason=$reason")
                 lastMedia = m; lastCalls = h

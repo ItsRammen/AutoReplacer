@@ -10,12 +10,18 @@ import kotlinx.coroutines.flow.StateFlow
 object AutoShowState {
     enum class Phase { WAITING, CONNECTING, STARTING_ANDROID_AUTO, RUNNING, STANDBY, ENDED }
 
+    /** What the car's touch link is doing. Kept apart from the display text, which is translated. */
+    enum class TouchState { WAITING, CONNECTED, WORKING, BLOCKED }
+
     data class Snapshot(
         val phase: Phase = Phase.WAITING,
         /** One line for the current step, or why the last session ended. */
         val headline: String = "",
-        val touch: String = "Waiting for the car",
-        val bluetooth: String = "Not checked yet",
+        /** The touch line for the screen; empty until something is known (the screen then says "waiting for the car"). */
+        val touch: String = "",
+        val touchState: TouchState = TouchState.WAITING,
+        /** The Bluetooth line for the screen; empty until the first check. */
+        val bluetooth: String = "",
         val picture: Boolean = false,
     )
 

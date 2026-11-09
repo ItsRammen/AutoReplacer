@@ -4,20 +4,20 @@ A release is a tag. Pushing a tag builds the APK on GitHub and attaches it to a 
 
 ## Each release
 
-1. Bump `versionName` in `openheadunit/app/build.gradle.kts` (for example `0.7.18`).
-2. Add a `### 0.7.18` section at the top of `openheadunit/CHANGELOG-AUTOREPLACER.md`. Its bullet lines become the release notes.
+1. Bump `versionName` in `openheadunit/app/build.gradle.kts` (for example `0.7.19`).
+2. Add a `### 0.7.19` section at the top of `openheadunit/CHANGELOG-AUTOREPLACER.md`. Its bullet lines become the release notes.
 3. Merge to `main`. The workflow file must be on the commit you tag.
 4. Tag it and push the tag. The tag **must** be `v` plus the version, or the build stops with a clear error:
 
    ```sh
    git checkout main && git pull
-   git tag v0.7.18
-   git push origin v0.7.18
+   git tag v0.7.19
+   git push origin v0.7.19
    ```
 
-   Or use GitHub: **Releases → Draft a new release → Choose a tag → create `v0.7.18` on publish → target `main`**. The workflow then adds the APK to that release.
+   Or use GitHub: **Releases → Draft a new release → Choose a tag → create `v0.7.19` on publish → target `main`**. The workflow then adds the APK to that release.
 
-5. Watch **Actions → Build APK**. When it is green, the release has `AutoReplacer-v0.7.18.apk` and its `.sha256`. It is marked **pre-release** until you change that.
+5. Watch **Actions → Build APK**. When it is green, the release has `AutoReplacer-v0.7.19.apk` and its `.sha256`. It is marked **pre-release** until you change that.
 
 To build without releasing: **Actions → Build APK → Run workflow**. The APK is attached to the run as an artifact.
 

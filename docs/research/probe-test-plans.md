@@ -27,7 +27,7 @@ The older plan below is still useful if the bridge sees no connection.
 
 Goal: find out how car touch reaches the phone (USB HID, ADB injection, both, or neither) and where it stops. Park the car with the parking brake on. Do not operate the phone while driving.
 
-Evidence behind this plan: `docs/auto-show-decompile-1.3.5.1.md` and `docs/android-input-paths-aosp.md`.
+Evidence behind this plan: `docs/research/auto-show-decompile-1.3.5.1.md` and `docs/research/android-input-paths-aosp.md`.
 
 ## Stage 0 — Mine the logs you already have (no car needed)
 

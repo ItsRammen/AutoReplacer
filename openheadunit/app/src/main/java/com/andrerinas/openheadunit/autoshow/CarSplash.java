@@ -96,6 +96,13 @@ public final class CarSplash {
             String candidate = row.length() == 0 ? word : row + " " + word;
             if (row.length() > 0 && paint.measureText(candidate) > maxWidth) { rows.add(row.toString()); row = new StringBuilder(word); }
             else row = new StringBuilder(candidate);
+            // A word wider than the row (Chinese text has no spaces) is broken between characters.
+            while (paint.measureText(row.toString()) > maxWidth && row.length() > 1) {
+                int cut = row.length() - 1;
+                while (cut > 1 && paint.measureText(row.substring(0, cut)) > maxWidth) cut--;
+                rows.add(row.substring(0, cut));
+                row = new StringBuilder(row.substring(cut));
+            }
         }
         if (row.length() > 0) rows.add(row.toString());
         return rows.size() > 3 ? rows.subList(0, 3) : rows;
