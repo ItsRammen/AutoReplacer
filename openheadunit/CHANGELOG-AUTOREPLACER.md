@@ -1,4 +1,7 @@
 ## What's new in AutoReplacer
+### 0.7.15
+- Fixed a blank car screen after a second reconnect: the waiting picture was still tied to the previous connection
+- After Android Auto's session ends, the first reconnect waits 3 seconds (it failed at 1.5 s while Android Auto was still closing), and the message now says to stop and start the head unit server if it stays silent
 ### 0.7.14
 - When the car link drops, the event log records the last 48 messages in both directions and the video traffic just before it, to show whether anything the car or the app did came right before the drop
 ### 0.7.13

@@ -258,7 +258,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             log("AUTOSHOW_RESUMED: the car is back and Android Auto's picture is flowing")
         } else {
             // Android Auto is still coming back (its session restarted): show the waiting picture, not black.
-            if (splash == null) startSplash(l, width, height)
+            startSplash(l, width, height)
             AutoShowState.update { it.copy(phase = AutoShowState.Phase.STARTING_ANDROID_AUTO) }
             setStatus("Waiting for Android Auto to come back")
             log("AUTOSHOW_RESUMED: the car is back, waiting for Android Auto's picture")
@@ -332,12 +332,18 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     /** Shows a waiting picture on the car until Android Auto's first picture arrives. Failure here is not fatal. */
+    private var splashGeneration = 0
+
     private fun startSplash(currentLink: GarminLink, width: Int, height: Int) {
         try {
-            synchronized(splashLock) { splashOpen = true }
+            // A waiting picture from an earlier link must not be reused: it was sending to that link, and a new link
+            // needs a stream that starts with its own parameters and a key frame. Replace it.
+            val stale = splash
+            if (stale != null) { splash = null; Thread { try { stale.stop() } catch (_: Exception) {} }.start() }
+            val generation = synchronized(splashLock) { splashOpen = true; ++splashGeneration }
             splash = CarSplash(width, height, object : CarEncoder.Sink {
                 override fun frame(data: ByteArray, codecConfig: Boolean) {
-                    synchronized(splashLock) { if (splashOpen) currentLink.sendVideo(data) }
+                    synchronized(splashLock) { if (splashOpen && generation == splashGeneration) link?.sendVideo(data) }
                 }
                 override fun log(text: String) { this@AutoShowService.log(text.replace("CAR_ENCODER", "CAR_SPLASH_ENCODER")) }
                 override fun failed(error: Exception) { this@AutoShowService.log("CAR_SPLASH_FAILED: ${error.message}") }
@@ -580,8 +586,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         log("AUTOSHOW_AA_RETRY: attempt $androidAutoRetries, Android Auto's head unit server did not answer or the session ended")
         // After a session that was running, Android Auto's server is normally still there: come back quickly.
         val quick = aaEverRan && androidAutoRetries <= 3
-        val hint = if (quick) "Android Auto restarted. Reconnecting."
-            else "Android Auto is not answering. On the phone open Android Auto, then Developer settings, then Start head unit server."
+        val hint = when {
+            quick -> "Android Auto restarted. Reconnecting."
+            aaEverRan -> "Android Auto is not answering. In Android Auto's developer settings, stop the head unit server and start it again."
+            else -> "Android Auto is not answering. On the phone open Android Auto, then Developer settings, then Start head unit server."
+        }
         AutoShowState.update {
             it.copy(phase = if (standby) AutoShowState.Phase.STANDBY else AutoShowState.Phase.STARTING_ANDROID_AUTO,
                 headline = if (standby) it.headline else hint, picture = false)
@@ -593,7 +602,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                     .setAction(AapService.ACTION_START_SELF_MODE)
                     .putExtra(AapService.EXTRA_NO_UI, true))
             }
-        }, if (quick) 1500L else 6000L)
+        }, if (quick) (if (androidAutoRetries <= 1) 3000L else 4500L) else 6000L)
     }
 
     /**
@@ -621,7 +630,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             log("AUTOSHOW_ENCODER_REBUILT: $reason")
             // With the car connected, it shows the waiting picture until Android Auto's first new frame.
             val l = link
-            if (l != null && splash == null) startSplash(l, pictureW, pictureH)
+            if (l != null) startSplash(l, pictureW, pictureH)
         } catch (e: Exception) {
             log("AUTOSHOW_ENCODER_REBUILD_FAILED: ${e.javaClass.simpleName}: ${e.message}")
             shutdown("The phone could not restart the picture for the car. Plug in again.")
