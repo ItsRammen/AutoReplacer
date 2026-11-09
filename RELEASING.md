@@ -21,6 +21,10 @@ A release is a tag. Pushing a tag builds the APK on GitHub and attaches it to a 
 
 To build without releasing: **Actions → Build APK → Run workflow**. The APK is attached to the run as an artifact.
 
+### If a build fails, or you need to retry
+
+Open **Actions → Build APK**, tap the red run, and read the failed step. After a fix has been merged to `main`, you do not need to delete the release or the tag: **Actions → Build APK → Run workflow**, keep the branch as `main`, and put the existing tag (for example `v0.7.17`) in the **tag** box. That builds from `main` and attaches the APK to the existing release. The tag must still equal `v` plus `versionName`.
+
 ## Signing (do this once)
 
 Without secrets, every build is signed with a **temporary debug key** that differs per run, so phones must uninstall before each update (and lose pairing and calibration). To sign releases with one stable key:
