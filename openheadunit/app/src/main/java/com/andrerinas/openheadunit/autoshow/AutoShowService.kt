@@ -48,8 +48,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
         /** True from the moment the car encoder owns the decoder until the session ends. */
         @Volatile var carSessionActive = false
-        private const val CHANNEL = "autoshow"
-        private const val NOTIFICATION = 4201
+
+        /** True while this service exists; Android Auto's service then shows the same notification. */
+        @Volatile var serviceRunning = false
 
         fun start(context: Context, accessory: UsbAccessory) {
             val intent = Intent(context, AutoShowService::class.java)
@@ -82,6 +83,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun onCreate() {
         super.onCreate()
+        serviceRunning = true
         goForeground()
         // Claim port 8051 before the car pushes and starts its own touch helper.
         touchServer = CarTouchServer(this).also { it.start() }
@@ -413,6 +415,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     override fun onDestroy() {
+        serviceRunning = false
         carSessionActive = false
         HeadUnitScreenConfig.carCanvas = null
         scope.cancel()
@@ -422,6 +425,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         phoneStateReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
         if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {}; try { splash?.stop() } catch (_: Exception) {} }
         super.onDestroy()
+        // The shared notification goes with this service; Android Auto's service, if it is still up, shows its own again.
+        Handler(Looper.getMainLooper()).postDelayed({ AapService.refreshNotificationIfRunning() }, 500L)
     }
 
     // --- notification ---------------------------------------------------------
@@ -433,34 +438,15 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     private fun refreshNotification() {
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION, buildNotification())
-    }
-
-    private fun buildNotification(): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else @Suppress("DEPRECATION") Notification.Builder(this)
-        val text = status + (bluetoothStatus?.let { "\nBluetooth: $it" } ?: "")
-        return builder.setSmallIcon(R.drawable.ic_stat_aa)
-            .setContentTitle("AutoReplacer · Auto+ Show")
-            .setContentText(status)
-            .setStyle(Notification.BigTextStyle().bigText(text))
-            .addAction(Notification.Action.Builder(
-                android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_aa), "Save log",
-                android.app.PendingIntent.getService(this, 1,
-                    Intent(this, AutoShowService::class.java).setAction(ACTION_SAVE_LOG),
-                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)).build())
-            .setOngoing(true)
-            .build()
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(AutoShowNotification.ID, AutoShowNotification.build(this))
     }
 
     private fun goForeground() {
-        if (Build.VERSION.SDK_INT >= 26) {
-            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(NotificationChannel(CHANNEL, "Auto+ Show", NotificationManager.IMPORTANCE_LOW))
-        }
+        // The same id and channel as Android Auto's own service use, so the two share one notification.
         if (Build.VERSION.SDK_INT >= 29) {
-            startForeground(NOTIFICATION, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            startForeground(AutoShowNotification.ID, AutoShowNotification.build(this), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
         } else {
-            startForeground(NOTIFICATION, buildNotification())
+            startForeground(AutoShowNotification.ID, AutoShowNotification.build(this))
         }
     }
 }

@@ -4209,6 +4209,10 @@ class AapService : Service() {
     // -------------------------------------------------------------------------
 
     private fun createNotification(): Notification {
+        // Car mode: one notification for the whole app, owned by the car session.
+        if (com.andrerinas.openheadunit.autoshow.AutoShowService.serviceRunning) {
+            return com.andrerinas.openheadunit.autoshow.AutoShowNotification.build(this)
+        }
         val stopPendingIntent = PendingIntent.getService(
             this, 0,
             Intent(this, AapService::class.java).apply { action = ACTION_STOP_SERVICE },
@@ -4491,6 +4495,11 @@ class AapService : Service() {
     // -------------------------------------------------------------------------
 
     companion object {
+        /** Re-posts the service notification, for when another service shared its id and went away. */
+        fun refreshNotificationIfRunning() {
+            try { instance?.updateNotification() } catch (_: Exception) {}
+        }
+
         @Volatile
         var instance: AapService? = null
             private set
