@@ -241,6 +241,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     private var touchLogged = 0
     private var touchLines = 0L
+    private var touchAreaW = 0
+    private var touchAreaH = 0
     private var touchesDropped = 0L
     private var lastTouchAt = 0L
     private var phoneStateReceiver: android.content.BroadcastReceiver? = null
@@ -258,8 +260,17 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         val configured = Settings.Resolution.fromId(comp.settings.resolutionId)
         val vw = decoder.videoWidth.takeIf { it > 0 } ?: configured?.width?.takeIf { it > 0 } ?: 1280
         val vh = decoder.videoHeight.takeIf { it > 0 } ?: configured?.height?.takeIf { it > 0 } ?: 720
-        val ax = (x.toLong() * vw / cw).toInt().coerceIn(0, vw - 1)
-        val ay = (y.toLong() * vh / ch).toInt().coerceIn(0, vh - 1)
+        // The car's touches can run past the picture size it declares (a taller panel): use the real extent.
+        AutoShowTouchArea.rememberDeclared(this, cw, ch)
+        AutoShowTouchArea.learn(this, x, y)
+        val tw = AutoShowTouchArea.widthExtent(this, cw)
+        val th = AutoShowTouchArea.heightExtent(this, ch)
+        if (tw != touchAreaW || th != touchAreaH) {
+            touchAreaW = tw; touchAreaH = th
+            log("AUTOSHOW_TOUCH_AREA: declared ${cw}x$ch, using ${tw}x$th (largest seen ${AutoShowTouchArea.maxX(this)},${AutoShowTouchArea.maxY(this)}, chosen height ${AutoShowTouchArea.overrideHeight(this)})")
+        }
+        val ax = TouchArea.map(x, tw, vw)
+        val ay = TouchArea.map(y, th, vh)
         val action = when (b) {
             0 -> Input.TouchEvent.PointerAction.TOUCH_ACTION_DOWN
             1 -> Input.TouchEvent.PointerAction.TOUCH_ACTION_UP
@@ -270,7 +281,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             if (touchesDropped++ < 5) log("AUTOSHOW_TOUCH_DROPPED: Android Auto session not connected yet")
             return
         }
-        if (b != 2 || touchLogged++ < 20) log("AUTOSHOW_TOUCH car=$x,$y/${cw}x$ch -> aa=$ax,$ay/${vw}x$vh action=$b")
+        if (b != 2 || touchLogged++ < 20) log("AUTOSHOW_TOUCH car=$x,$y/${cw}x$ch -> aa=$ax,$ay/${vw}x$vh action=$b area=${tw}x$th")
         comp.commManager.send(TouchEvent(SystemClock.uptimeMillis(), action, 0, listOf(Triple(0, ax, ay))))
     }
 

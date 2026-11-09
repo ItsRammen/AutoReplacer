@@ -135,8 +135,16 @@ object AutoShowStatusCard {
         }
         more.setOnClickListener { anchor ->
             android.widget.PopupMenu(anchor.context, anchor).apply {
-                menu.add("Save log")
-                setOnMenuItemClickListener { onSaveLog(); true }
+                menu.add(0, 1, 0, "Save log")
+                menu.add(0, 2, 1, "Touch area: " + AutoShowTouchArea.describe(anchor.context))
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        1 -> onSaveLog()
+                        2 -> android.widget.Toast.makeText(anchor.context,
+                            "Touch area: " + AutoShowTouchArea.cycle(anchor.context), android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    true
+                }
             }.show()
         }
         more.bringToFront()
