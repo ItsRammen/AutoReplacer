@@ -41,6 +41,11 @@ object AutoShowNotification {
                 PendingIntent.getService(context, 1,
                     Intent(context, AutoShowService::class.java).setAction(AutoShowService.ACTION_SAVE_LOG),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)).build())
+            .addAction(Notification.Action.Builder(
+                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_stat_aa), "Mark",
+                PendingIntent.getService(context, 2,
+                    Intent(context, AutoShowService::class.java).setAction(AutoShowService.ACTION_MARK),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)).build())
             .setOngoing(true)
             .build()
     }

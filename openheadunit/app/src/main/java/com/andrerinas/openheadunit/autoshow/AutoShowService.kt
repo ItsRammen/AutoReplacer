@@ -46,6 +46,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         const val ACTION_STOP = "com.andrerinas.openheadunit.autoshow.STOP"
         const val ACTION_SAVE_LOG = "com.andrerinas.openheadunit.autoshow.SAVE_LOG"
         const val ACTION_CALIBRATE = "com.andrerinas.openheadunit.autoshow.CALIBRATE"
+        const val ACTION_MARK = "com.andrerinas.openheadunit.autoshow.MARK"
         /** How long Android Auto is kept after the car link drops. */
         private const val STANDBY_MS = 90_000L
 
@@ -78,6 +79,26 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var lastStartId = 0
     /** True while the car link is gone but Android Auto and the encoder are kept running for a returning cable. */
     private var standby = false
+    /** The phone's battery, temperature, charging and thermal state, for lining a drop up with something on the phone. */
+    private fun phoneContext(): String {
+        return try {
+            val battery = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = battery?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = battery?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100) ?: 100
+            val temp = (battery?.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10.0
+            val plugged = when (battery?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) ?: 0) {
+                0 -> "none"; android.os.BatteryManager.BATTERY_PLUGGED_AC -> "AC"; android.os.BatteryManager.BATTERY_PLUGGED_USB -> "USB"
+                android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS -> "wireless"; else -> "other"
+            }
+            val status = when (battery?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, 0) ?: 0) {
+                android.os.BatteryManager.BATTERY_STATUS_CHARGING -> "charging"; android.os.BatteryManager.BATTERY_STATUS_DISCHARGING -> "discharging"
+                android.os.BatteryManager.BATTERY_STATUS_FULL -> "full"; android.os.BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "not charging"; else -> "unknown"
+            }
+            val thermal = if (Build.VERSION.SDK_INT >= 29) "thermal=${(getSystemService(POWER_SERVICE) as android.os.PowerManager).currentThermalStatus}" else "thermal=n/a"
+            "battery=${if (level >= 0) level * 100 / scale else -1}% temp=${temp}C plugged=$plugged status=$status $thermal"
+        } catch (e: Exception) { "phone state unavailable (${e.javaClass.simpleName})" }
+    }
+
     /** Android Auto's picture has reached the car encoder at least once in this car session. */
     @Volatile private var aaEverRan = false
     private var encoderSurface: android.view.Surface? = null
@@ -122,6 +143,13 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         if (intent?.action == ACTION_STOP) { shutdown("Stopped by user"); return START_NOT_STICKY }
         if (intent?.action == ACTION_SAVE_LOG) { saveLog(); return START_NOT_STICKY }
         if (intent?.action == ACTION_CALIBRATE) { startCalibration(startId); return START_NOT_STICKY }
+        if (intent?.action == ACTION_MARK) {
+            // A timestamp the user puts in the log by hand ("the car just did something"), next to the phone's own state.
+            log("USER_MARK: marked by the user; ${phoneContext()}")
+            toast("Marked in the log at " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date()))
+            if (link == null && !projecting) stopSelf(startId)
+            return START_NOT_STICKY
+        }
         val accessory: UsbAccessory? = if (Build.VERSION.SDK_INT >= 33) {
             intent?.getParcelableExtra(UsbManager.EXTRA_ACCESSORY, UsbAccessory::class.java)
         } else {
@@ -204,6 +232,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             if (current == null && standby) return@post
             // The technical reason goes to the event log; the person using the app gets a sentence.
             log("AUTOSHOW_LINK_ENDED: error=$error reason=$reason")
+            log("AUTOSHOW_PHONE_CONTEXT: ${phoneContext()}")
             val friendly = DisconnectReason.describe(reason, error)
             if (canStandBy()) enterStandby(friendly) else shutdown(friendly)
         }

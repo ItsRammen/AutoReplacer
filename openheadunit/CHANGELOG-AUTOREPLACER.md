@@ -1,4 +1,7 @@
 ## What's new in AutoReplacer
+### 0.7.17
+- A **Mark** button in the notification puts a timestamp in the log (with the phone's battery, temperature and charging state), so you can note when something happens in the car
+- Each link drop also logs the phone's battery, temperature, charging and thermal state
 ### 0.7.16
 - The touch link now records how many bytes the car sends (and the first ones), says when it has been connected but silent, and accepts either line ending, so a session with no touch can be told apart from one where the car sends something unexpected
 ### 0.7.15
