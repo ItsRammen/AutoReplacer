@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.13
+- The event log now records the phone's power and USB state changes, so a dropped link can be told apart: cable pulled, power lost, or the car resetting its USB
 ### 0.7.12
 - Removed the "Touch: Locked by the car" message from 0.7.8 and 0.7.9: touch works while the car reports a driving restriction, so the label was wrong. The car's flag is now only recorded in the log
 ### 0.7.11

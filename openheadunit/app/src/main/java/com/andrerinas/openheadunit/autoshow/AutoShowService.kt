@@ -100,12 +100,20 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         // Phone state changes are logged with the time so they can be lined up with touch silence.
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                log("PHONE_STATE ${intent?.action?.substringAfterLast('.')} touchLines=$touchLines lastTouch=${if (lastTouchAt == 0L) "never" else "${(SystemClock.elapsedRealtime() - lastTouchAt) / 1000}s ago"}")
+                // USB_STATE says what the cable is doing electrically and as a function; POWER_* says whether the phone
+                // lost power. A link that dies while both stay unchanged was not unplugged.
+                val extras = if (intent?.action == "android.hardware.usb.action.USB_STATE") {
+                    intent.extras?.keySet()?.sorted()?.joinToString(" ", " ") { key -> "$key=${intent.extras?.get(key)}" } ?: ""
+                } else ""
+                log("PHONE_STATE ${intent?.action?.substringAfterLast('.')}$extras touchLines=$touchLines lastTouch=${if (lastTouchAt == 0L) "never" else "${(SystemClock.elapsedRealtime() - lastTouchAt) / 1000}s ago"}")
             }
         }
         phoneStateReceiver = receiver
         val filter = android.content.IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_POWER_CONNECTED); addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction("android.hardware.usb.action.USB_STATE")
+            addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
         }
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
