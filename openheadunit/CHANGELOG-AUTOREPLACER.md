@@ -1,4 +1,8 @@
 ## What's new in AutoReplacer
+### 0.7.7
+- Fixed a black car screen after the cable dropped and came back: Android Auto's picture now returns, with the waiting picture shown meanwhile
+- A cable that bounces twice quickly now uses the new connection instead of ignoring it
+- Android Auto reconnects within a couple of seconds after it restarts
 ### 0.7.6
 - About shows AutoReplacer's own changelog, and the version number is AutoReplacer's (it showed Open Headunit's 4.0.0-beta2)
 ### 0.7.5

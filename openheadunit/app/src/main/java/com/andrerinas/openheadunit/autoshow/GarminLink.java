@@ -55,6 +55,7 @@ public final class GarminLink {
     public void start() { new Thread(this::run, "garmin-link-read").start(); }
     public long frames() { return frames.get(); }
     public boolean isClosing() { return closing.get(); }
+    public boolean isVideoReady() { return videoReady; }
 
     private void run() {
         try {
