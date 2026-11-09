@@ -45,6 +45,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         const val ACTION_START = "com.andrerinas.openheadunit.autoshow.START"
         const val ACTION_STOP = "com.andrerinas.openheadunit.autoshow.STOP"
         const val ACTION_SAVE_LOG = "com.andrerinas.openheadunit.autoshow.SAVE_LOG"
+        const val ACTION_CALIBRATE = "com.andrerinas.openheadunit.autoshow.CALIBRATE"
 
         /** True from the moment the car encoder owns the decoder until the session ends. */
         @Volatile var carSessionActive = false
@@ -102,6 +103,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { shutdown("Stopped by user"); return START_NOT_STICKY }
         if (intent?.action == ACTION_SAVE_LOG) { saveLog(); return START_NOT_STICKY }
+        if (intent?.action == ACTION_CALIBRATE) { startCalibration(startId); return START_NOT_STICKY }
         val accessory: UsbAccessory? = if (Build.VERSION.SDK_INT >= 33) {
             intent?.getParcelableExtra(UsbManager.EXTRA_ACCESSORY, UsbAccessory::class.java)
         } else {
@@ -138,6 +140,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun log(text: String) {
         AppLog.i("AutoShow: %s", text)
+        AutoShowEventLog.append(this, text)
         if (text.startsWith("TS8051_BIND_FAILED")) setStatus("Car touch is blocked by the car's old touch helper; trying to clear it. Unplug and replug if it stays blocked.")
     }
 
@@ -168,6 +171,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             val enc = CarEncoder(width, height, object : CarEncoder.Sink {
                 override fun frame(data: ByteArray, codecConfig: Boolean) {
                     aaPictureFrames.incrementAndGet()
+                    // While the calibration picture is on the car, Android Auto's picture waits.
+                    if (calibrating) return
                     // The first Android Auto picture replaces the waiting picture; no splash frame may follow it.
                     var wasSplash = false
                     synchronized(splashLock) { if (splashOpen) { splashOpen = false; wasSplash = true } }
@@ -181,6 +186,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 override fun log(text: String) { this@AutoShowService.log(text) }
                 override fun failed(error: Exception) { main.post { shutdown("Encoder failed: ${error.message}") } }
             })
+            pictureW = width; pictureH = height
             startSplash(currentLink, width, height)
             val surface = enc.start()
             encoder = enc
@@ -229,6 +235,105 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         }
     }
 
+    // --- touch calibration ----------------------------------------------------
+
+    private var pictureW = 0
+    private var pictureH = 0
+    @Volatile private var calibrating = false
+    private var calibrationScreen: CarCalibrationScreen? = null
+    private var calibrationIndex = 0
+    private var calibrationMessage = ""
+    private var calibrationDown = false
+    private val calibrationTargets = arrayOf(
+        doubleArrayOf(0.10, 0.08), doubleArrayOf(0.90, 0.08), doubleArrayOf(0.90, 0.92), doubleArrayOf(0.10, 0.92),
+        doubleArrayOf(0.50, 0.50), doubleArrayOf(0.50, 0.08), doubleArrayOf(0.50, 0.92), doubleArrayOf(0.10, 0.50), doubleArrayOf(0.90, 0.50))
+    private val measuredX = DoubleArray(calibrationTargets.size)
+    private val measuredY = DoubleArray(calibrationTargets.size)
+    private val calibrationTimeout = Runnable { endCalibration("Touch calibration timed out") }
+
+    private fun toast(text: String) = main.post { android.widget.Toast.makeText(applicationContext, text, android.widget.Toast.LENGTH_LONG).show() }
+
+    /** Shows a grid of crosses on the car and measures where the car reports each tap. */
+    private fun startCalibration(startId: Int) {
+        val currentLink = link
+        if (currentLink == null || !projecting || aaPictureFrames.get() == 0L || calibrating || pictureW == 0) {
+            toast("Start the car session and wait for the Android Auto picture first")
+            if (link == null) stopSelf(startId)
+            return
+        }
+        try {
+            calibrationIndex = 0; calibrationMessage = ""; calibrationDown = false
+            val screen = CarCalibrationScreen(pictureW, pictureH, object : CarEncoder.Sink {
+                override fun frame(data: ByteArray, codecConfig: Boolean) { synchronized(splashLock) { if (calibrating) currentLink.sendVideo(data) } }
+                override fun log(text: String) { this@AutoShowService.log(text.replace("CAR_ENCODER", "CAR_CALIBRATION_ENCODER")) }
+                override fun failed(error: Exception) { this@AutoShowService.log("CAR_CALIBRATION_FAILED: ${error.message}") }
+            }, object : CarCalibrationScreen.Progress {
+                override fun index() = calibrationIndex
+                override fun total() = calibrationTargets.size
+                override fun target(index: Int) = calibrationTargets[index]
+                override fun message() = calibrationMessage
+            })
+            calibrationScreen = screen
+            calibrating = true
+            screen.start()
+            main.removeCallbacks(calibrationTimeout)
+            main.postDelayed(calibrationTimeout, 180000L)
+            log("AUTOSHOW_CALIBRATION_START: ${calibrationTargets.size} targets on the car")
+            toast("Look at the car screen and tap the middle of each cross")
+        } catch (e: Exception) {
+            calibrating = false
+            log("AUTOSHOW_CALIBRATION_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
+            toast("Could not start the touch calibration")
+        }
+    }
+
+    private fun calibrationTouch(x: Int, y: Int, b: Int, cw: Int, ch: Int) {
+        if (b == 0 && !calibrationDown) {
+            calibrationDown = true
+            measuredX[calibrationIndex] = x.toDouble() / cw
+            measuredY[calibrationIndex] = y.toDouble() / ch
+            log("AUTOSHOW_CALIBRATION_TAP target=${calibrationIndex} wanted=${calibrationTargets[calibrationIndex][0]},${calibrationTargets[calibrationIndex][1]} raw=$x,$y/${cw}x$ch")
+            main.removeCallbacks(calibrationTimeout)
+            main.postDelayed(calibrationTimeout, 180000L)
+        } else if (b == 1 && calibrationDown) {
+            calibrationDown = false
+            calibrationMessage = ""
+            calibrationIndex++
+            if (calibrationIndex >= calibrationTargets.size) finishCalibration()
+        }
+    }
+
+    private fun finishCalibration() {
+        val tx = DoubleArray(calibrationTargets.size) { calibrationTargets[it][0] }
+        val ty = DoubleArray(calibrationTargets.size) { calibrationTargets[it][1] }
+        val fx = TouchArea.fit(tx, measuredX)
+        val fy = TouchArea.fit(ty, measuredY)
+        if (fx != null && fy != null) {
+            AutoShowTouchArea.saveCalibration(this, fx[0], fx[1], fy[0], fy[1])
+            log("AUTOSHOW_CALIBRATION_DONE: x measured = %.4f * picture %+.4f, y measured = %.4f * picture %+.4f".format(fx[0], fx[1], fy[0], fy[1]))
+            endCalibration("Touch calibrated: ${AutoShowTouchArea.describe(this)}")
+        } else {
+            log("AUTOSHOW_CALIBRATION_REFUSED: the taps did not describe a plausible screen")
+            calibrationIndex = 0
+            calibrationMessage = "The taps did not look right. Start again with the first cross."
+        }
+    }
+
+    private fun endCalibration(message: String) {
+        if (!calibrating) return
+        main.removeCallbacks(calibrationTimeout)
+        synchronized(splashLock) { calibrating = false }
+        val screen = calibrationScreen; calibrationScreen = null
+        Thread { try { screen?.stop() } catch (_: Exception) {} }.start()
+        // Android Auto's picture goes back on the car: its own parameters and a key frame first.
+        encoder?.let { e ->
+            e.lastConfig()?.let { config -> link?.sendVideo(config) }
+            e.requestKeyFrame()
+        }
+        log("AUTOSHOW_CALIBRATION_END: $message")
+        toast(message)
+    }
+
     // --- CarTouchServer.Listener ---------------------------------------------
 
     override fun carSize(phoneWidth: Int, phoneHeight: Int, carWidth: Int, carHeight: Int) {
@@ -254,6 +359,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         val comp = App.provide(this)
         val cw = if (carWidth > 0) carWidth else this.carWidth.takeIf { it > 0 } ?: 1280
         val ch = if (carHeight > 0) carHeight else this.carHeight.takeIf { it > 0 } ?: 720
+        if (calibrating) { calibrationTouch(x, y, b, cw, ch); return }
         val decoder = comp.videoDecoder
         val configured = Settings.Resolution.fromId(comp.settings.resolutionId)
         val vw = decoder.videoWidth.takeIf { it > 0 } ?: configured?.width?.takeIf { it > 0 } ?: 1280
@@ -267,8 +373,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             touchAreaW = tw; touchAreaH = th
             log("AUTOSHOW_TOUCH_AREA: declared ${cw}x$ch, using ${tw}x$th (largest seen ${AutoShowTouchArea.maxX(this)},${AutoShowTouchArea.maxY(this)}, chosen height ${AutoShowTouchArea.overrideHeight(this)})")
         }
-        val ax = TouchArea.map(x, tw, vw)
-        val ay = TouchArea.map(y, th, vh)
+        // A calibration (measured from taps on a target grid) replaces the learned extent.
+        val calibration = AutoShowTouchArea.calibration(this)
+        val ax = if (calibration != null) TouchArea.unmap(x, calibration[0], calibration[1], cw, vw) else TouchArea.map(x, tw, vw)
+        val ay = if (calibration != null) TouchArea.unmap(y, calibration[2], calibration[3], ch, vh) else TouchArea.map(y, th, vh)
         val action = when (b) {
             0 -> Input.TouchEvent.PointerAction.TOUCH_ACTION_DOWN
             1 -> Input.TouchEvent.PointerAction.TOUCH_ACTION_UP
@@ -380,8 +488,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try { link?.stop(reason) } catch (_: Exception) {}
         try { encoder?.stop() } catch (_: Exception) {}
         encoder = null
-        synchronized(splashLock) { splashOpen = false }
+        synchronized(splashLock) { splashOpen = false; calibrating = false }
         splash?.let { s -> splash = null; Thread { try { s.stop() } catch (_: Exception) {} }.start() }
+        calibrationScreen?.let { s -> calibrationScreen = null; Thread { try { s.stop() } catch (_: Exception) {} }.start() }
         carSessionActive = false
         stateJob?.cancel()
         HeadUnitScreenConfig.carCanvas = null

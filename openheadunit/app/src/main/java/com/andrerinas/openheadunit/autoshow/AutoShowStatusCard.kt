@@ -151,10 +151,14 @@ object AutoShowStatusCard {
         more.setOnClickListener { anchor ->
             android.widget.PopupMenu(anchor.context, anchor).apply {
                 menu.add(0, 1, 0, "Save log")
-                menu.add(0, 2, 1, "Touch area: " + AutoShowTouchArea.describe(anchor.context))
+                menu.add(0, 3, 1, "Calibrate touch on car")
+                menu.add(0, 2, 2, "Touch mapping: " + AutoShowTouchArea.describe(anchor.context) +
+                    if (AutoShowTouchArea.calibration(anchor.context) != null) " (tap to reset)" else "")
                 setOnMenuItemClickListener { item ->
                     when (item.itemId) {
                         1 -> onSaveLog()
+                        3 -> anchor.context.startService(android.content.Intent(anchor.context, AutoShowService::class.java)
+                            .setAction(AutoShowService.ACTION_CALIBRATE))
                         2 -> android.widget.Toast.makeText(anchor.context,
                             "Touch area: " + AutoShowTouchArea.cycle(anchor.context), android.widget.Toast.LENGTH_LONG).show()
                     }

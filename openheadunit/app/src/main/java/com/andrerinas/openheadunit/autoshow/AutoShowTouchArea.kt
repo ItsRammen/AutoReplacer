@@ -46,7 +46,25 @@ object AutoShowTouchArea {
     fun widthExtent(context: Context, declared: Int): Int =
         TouchArea.extent(declared, maxX(context), 0, false)
 
+    /** The calibrated mapping {ax, bx, ay, by} (measured = a * picture fraction + b), or null. */
+    fun calibration(context: Context): DoubleArray? {
+        val p = prefs(context)
+        if (!p.getBoolean("calibrated", false)) return null
+        return doubleArrayOf(
+            p.getString("calAx", null)?.toDoubleOrNull() ?: return null, p.getString("calBx", null)?.toDoubleOrNull() ?: return null,
+            p.getString("calAy", null)?.toDoubleOrNull() ?: return null, p.getString("calBy", null)?.toDoubleOrNull() ?: return null)
+    }
+
+    fun saveCalibration(context: Context, ax: Double, bx: Double, ay: Double, by: Double) {
+        prefs(context).edit().putBoolean("calibrated", true)
+            .putString("calAx", ax.toString()).putString("calBx", bx.toString())
+            .putString("calAy", ay.toString()).putString("calBy", by.toString()).apply()
+    }
+
+    fun clearCalibration(context: Context) { prefs(context).edit().putBoolean("calibrated", false).apply() }
+
     fun describe(context: Context): String {
+        calibration(context)?.let { return String.format(java.util.Locale.US, "Calibrated (x %.2f%+.2f, y %.2f%+.2f)", it[0], it[1], it[2], it[3]) }
         val p = prefs(context)
         val dw = p.getInt(DECLARED_W, 1280).takeIf { it > 0 } ?: 1280
         val dh = p.getInt(DECLARED_H, 720).takeIf { it > 0 } ?: 720
@@ -57,6 +75,7 @@ object AutoShowTouchArea {
 
     /** Auto, then the picture's own height (no scaling), then 800; learned maxima are cleared on the way back to Auto. */
     fun cycle(context: Context): String {
+        if (calibration(context) != null) { clearCalibration(context); return describe(context) }
         val p = prefs(context)
         val declaredH = p.getInt(DECLARED_H, 720).takeIf { it > 0 } ?: 720
         val current = overrideHeight(context)

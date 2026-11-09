@@ -25,6 +25,32 @@ public final class TouchArea {
         return observedMax + 1;
     }
 
+    /**
+     * Least-squares fit of measured = a * target + b, both in 0..1 picture fractions. Returns {a, b},
+     * or null when the points do not describe a plausible screen (too few, too close together,
+     * a scale far from 1, or a large offset).
+     */
+    public static double[] fit(double[] target, double[] measured) {
+        int n = target.length;
+        if (n < 4 || measured.length != n) return null;
+        double st = 0, sm = 0;
+        for (int i = 0; i < n; i++) { st += target[i]; sm += measured[i]; }
+        double mt = st / n, mm = sm / n, num = 0, den = 0;
+        for (int i = 0; i < n; i++) { num += (target[i] - mt) * (measured[i] - mm); den += (target[i] - mt) * (target[i] - mt); }
+        if (den < 0.05) return null;
+        double a = num / den, b = mm - a * mt;
+        if (a < 0.6 || a > 1.8 || Math.abs(b) > 0.35) return null;
+        return new double[] {a, b};
+    }
+
+    /** Picture pixel for a raw coordinate, given the fit; the picture is {@code pictureSize} pixels along the axis. */
+    public static int unmap(int raw, double a, double b, int rawExtent, int pictureSize) {
+        if (a <= 0 || rawExtent <= 0 || pictureSize <= 0) return 0;
+        double fraction = (raw / (double) rawExtent - b) / a;
+        long pixel = Math.round(fraction * pictureSize);
+        return (int) Math.max(0, Math.min(pictureSize - 1, pixel));
+    }
+
     /** Scales a car coordinate into a picture of the given size. */
     public static int map(int value, int extent, int pictureSize) {
         if (extent <= 0 || pictureSize <= 0) return 0;

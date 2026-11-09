@@ -25,6 +25,7 @@ public final class CarEncoder {
     private MediaCodec codec;
     private Surface surface;
     private Thread drain;
+    private volatile byte[] lastConfig;
 
     public CarEncoder(int width, int height, Sink sink) { this.width = width; this.height = height; this.sink = sink; }
 
@@ -66,6 +67,7 @@ public final class CarEncoder {
                         byte[] data = new byte[info.size];
                         encoded.get(data);
                         boolean config = (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
+                        if (config) lastConfig = data.clone();
                         if (frames < 2 || config) sink.log("CAR_ENCODER_BUFFER bytes=" + info.size + " config=" + config);
                         frames++;
                         sink.frame(data, config);
@@ -73,6 +75,19 @@ public final class CarEncoder {
                 } finally { codec.releaseOutputBuffer(index, false); }
             }
         } catch (Exception e) { if (!stopped) sink.failed(e); }
+    }
+
+    /** The most recent SPS/PPS buffer, so a stream can be resumed after another encoder used the car's decoder. */
+    public byte[] lastConfig() { return lastConfig; }
+
+    /** Asks for a key frame, so a decoder that joins (or rejoins) the stream can start straight away. */
+    public synchronized void requestKeyFrame() {
+        if (codec == null) return;
+        try {
+            android.os.Bundle b = new android.os.Bundle();
+            b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
+            codec.setParameters(b);
+        } catch (Exception ignored) {}
     }
 
     public synchronized void stop() {

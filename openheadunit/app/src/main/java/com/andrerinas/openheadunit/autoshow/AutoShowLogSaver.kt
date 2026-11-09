@@ -22,7 +22,8 @@ object AutoShowLogSaver {
                 val header = "AutoReplacer log ${java.util.Date()}\n" +
                     "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) ${Build.MANUFACTURER} ${Build.MODEL}\n" +
                     AutoShowReadiness.summary(app) + "\n\n"
-                val text = header + body
+                val events = AutoShowEventLog.read(app)
+                val text = header + body + (if (events.isNotEmpty()) "\n\n===== AutoReplacer event log (kept by the app; the system log above only holds the last few minutes) =====\n" + events else "")
                 if (Build.VERSION.SDK_INT >= 29) {
                     val values = ContentValues().apply {
                         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
