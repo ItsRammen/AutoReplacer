@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.12
+- Removed the "Touch: Locked by the car" message from 0.7.8 and 0.7.9: touch works while the car reports a driving restriction, so the label was wrong. The car's flag is now only recorded in the log
 ### 0.7.11
 - Fixed reconnecting after the cable drops: picture is no longer sent to the car before it says it is ready (that made its USB reset again and again), and a replaced connection now closes before the new one opens
 ### 0.7.10

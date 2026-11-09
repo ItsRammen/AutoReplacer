@@ -46,7 +46,6 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         const val ACTION_STOP = "com.andrerinas.openheadunit.autoshow.STOP"
         const val ACTION_SAVE_LOG = "com.andrerinas.openheadunit.autoshow.SAVE_LOG"
         const val ACTION_CALIBRATE = "com.andrerinas.openheadunit.autoshow.CALIBRATE"
-        const val TOUCH_LOCKED_TEXT = "Locked by the car (it reports a driving restriction). It unlocks when the car reports it is free."
         /** How long Android Auto is kept after the car link drops. */
         private const val STANDBY_MS = 90_000L
 
@@ -168,7 +167,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         // The car has opened its touch link; its first touch (which sends the screen size) has not come yet.
         if (text.startsWith("TS8051_CONNECTED")) {
             AutoShowState.update {
-                if (it.touch == TOUCH_LOCKED_TEXT || it.touch.startsWith("Blocked") || it.touch.startsWith("Working")) it
+                if (it.touch.startsWith("Blocked") || it.touch.startsWith("Working")) it
                 else it.copy(touch = "Connected; waiting for the first touch")
             }
         }
@@ -450,27 +449,16 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     /**
-     * The car holds back touch for apps it has not allowed while it reports a driving restriction, and
-     * AutoReplacer does not override that: it answers "allowed" only for an unrestricted, stationary car.
-     * Say so, instead of leaving touch silently dead.
+     * The car's driving-restriction flag. It is recorded, not acted on: in the logs the car reports speed=0 even
+     * while driving, and touch has worked with the flag set and unanswered, so it is not a reliable gate. The
+     * app still answers "allowed" only for an unrestricted, stationary car.
      */
+    private var lastRestrictionFlag = -1
     override fun safetyState(restricted: Int, speed: Int, unlocked: Boolean) {
         main.post {
-            if (ended) return@post
-            // The car decides whether to start the touch stream when the first touch comes. If it re-locked before any
-            // touch has started, the stream may be refused even though an earlier reply unlocked it.
-            val locked = restricted == 1 && (!unlocked || touchLines == 0L)
-            val current = AutoShowState.state.value.touch
-            if (locked) {
-                if (current != TOUCH_LOCKED_TEXT) {
-                    log("AUTOSHOW_TOUCH_LOCKED_BY_CAR: the car reports a driving restriction (restricted=$restricted speed=$speed); touch stays off until it reports none")
-                    AutoShowState.update { it.copy(touch = TOUCH_LOCKED_TEXT) }
-                }
-            } else if (current == TOUCH_LOCKED_TEXT) {
-                log("AUTOSHOW_TOUCH_UNLOCKED_BY_CAR: the car reports no restriction")
-                AutoShowState.update { it.copy(touch = "Unlocked by the car; waiting for your first touch") }
-            }
-            refreshNotification()
+            if (restricted == lastRestrictionFlag) return@post
+            lastRestrictionFlag = restricted
+            log("AUTOSHOW_CAR_RESTRICTION_FLAG: restricted=$restricted speed=$speed (informational; touchLines=$touchLines)")
         }
     }
 
@@ -693,7 +681,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         main.removeCallbacksAndMessages(null)
         carBluetooth?.stop(); carBluetooth = null
         link = null; encoder = null
-        projecting = false; ended = false; standby = false; aaEverRan = false
+        projecting = false; ended = false; standby = false; aaEverRan = false; lastRestrictionFlag = -1
         aaPictureFrames.set(0)
         bluetoothStatus = null
         touchLogged = 0

@@ -33,7 +33,7 @@ object AutoShowNotification {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return builder.setSmallIcon(R.drawable.ic_stat_aa)
             .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(if (snapshot.touch == AutoShowService.TOUCH_LOCKED_TEXT) "$title · touch locked by the car" else title)
+            .setContentText(title)
             .setStyle(Notification.BigTextStyle().bigText(details))
             .setContentIntent(open)
             .addAction(Notification.Action.Builder(
