@@ -44,7 +44,11 @@ class AboutFragment : Fragment() {
             sb.append("Open Headunit by Andr\u00e9 Rinas: <a href=\"https://github.com/andreknieriem/open-headunit\">https://github.com/andreknieriem/open-headunit</a><br/>")
             sb.append("which continues Headunit by Michael A. Reid: <a href=\"https://github.com/mikereidis/headunit\">https://github.com/mikereidis/headunit</a><br/>")
             sb.append("AutoReplacer changes the connection, video output, touch and screens for Auto+ Show; the rest is theirs. Thank you.<br/><br/>")
-            sb.append("<h3>Open Headunit changelog (upstream)</h3>")
+            // Our own history first; Open Headunit's long upstream changelog stays on its GitHub page.
+            sb.append(parseMarkdownToHtml(readAsset("CHANGELOG-AUTOREPLACER.md")))
+            sb.append("<br/><br/>")
+            sb.append("<h3>Open Headunit's own changelog</h3>")
+            sb.append("<a href=\"https://github.com/andreknieriem/open-headunit/blob/main/CHANGELOG.md\">https://github.com/andreknieriem/open-headunit/blob/main/CHANGELOG.md</a><br/>")
         } else {
             sb.append("<b>Special thanks to Mike Reidis for the original idea and android auto protocol and code.</b><br/>")
             sb.append("<a href=\"https://github.com/mikereidis/headunit\">https://github.com/mikereidis/headunit</a><br/><br/>")
@@ -53,7 +57,9 @@ class AboutFragment : Fragment() {
             sb.append("<a href=\"https://github.com/andreknieriem/open-headunit\">https://github.com/andreknieriem/open-headunit</a><br/><br/>")
         }
 
-        sb.append(parseMarkdownToHtml(readAsset("CHANGELOG.md")))
+        if (!com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            sb.append(parseMarkdownToHtml(readAsset("CHANGELOG.md")))
+        }
         sb.append("<br/><br/>")
 
         sb.append("<h3>LICENSE</h3>")

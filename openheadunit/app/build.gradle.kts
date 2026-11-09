@@ -25,7 +25,7 @@ android {
     }
 
     val copyRootAssets = tasks.register<Copy>("copyRootAssets") {
-        from("${project.rootDir}/CHANGELOG.md", "${project.rootDir}/LICENSE")
+        from("${project.rootDir}/CHANGELOG.md", "${project.rootDir}/CHANGELOG-AUTOREPLACER.md", "${project.rootDir}/LICENSE")
         into("${project.layout.buildDirectory.get().asFile}/generated/assets/root")
     }
 
@@ -97,7 +97,7 @@ android {
         minSdk = 16
         targetSdk = 36
         versionCode = 122
-        versionName = "4.0.0-beta2"
+        versionName = "0.7.6"
         setProperty("archivesBaseName", "${applicationId}_${versionName}")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled = true
