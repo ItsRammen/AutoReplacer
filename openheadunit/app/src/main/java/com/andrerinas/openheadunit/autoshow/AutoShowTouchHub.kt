@@ -16,6 +16,9 @@ object AutoShowTouchHub : CarTouchServer.Listener {
         if (server == null) server = CarTouchServer(this).also { it.start() }
     }
 
+    /** Whether the car's forwarded touch connection is open right now. */
+    fun carConnected(): Boolean = server?.isCarConnected() == true
+
     fun attach(listener: CarTouchServer.Listener) { target = listener; ensureStarted() }
 
     fun detach(listener: CarTouchServer.Listener) { if (target === listener) target = null }

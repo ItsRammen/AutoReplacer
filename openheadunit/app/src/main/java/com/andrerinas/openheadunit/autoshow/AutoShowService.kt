@@ -79,6 +79,45 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var lastStartId = 0
     /** True while the car link is gone but Android Auto and the encoder are kept running for a returning cable. */
     private var standby = false
+    // --- USB diagnostics ------------------------------------------------------
+
+    private var usbWatchGeneration = 0
+
+    private fun sysProp(name: String): String = try {
+        val p = Runtime.getRuntime().exec(arrayOf("getprop", name))
+        p.inputStream.bufferedReader().readText().trim().ifEmpty { "empty" }.also { p.destroy() }
+    } catch (e: Exception) { "n/a" }
+
+    /**
+     * What the phone's USB side looks like right now: the sticky USB state (connected, configured, which functions),
+     * whether the car's accessory is still listed and permitted, whether the car's touch (ADB) connection is open,
+     * and the USB properties. Run off the main thread (it runs getprop).
+     */
+    private fun usbSnapshot(): String {
+        return try {
+            val usb = getSystemService(USB_SERVICE) as UsbManager
+            val sticky = registerReceiver(null, android.content.IntentFilter("android.hardware.usb.action.USB_STATE"))
+            val state = sticky?.extras?.let { extras -> extras.keySet().sorted().joinToString(" ") { k -> "$k=${extras.get(k)}" } } ?: "no sticky state"
+            val accessories = usb.accessoryList ?: emptyArray()
+            val first = accessories.firstOrNull()
+            val accessory = if (first == null) "accessories=0"
+                else "accessories=${accessories.size} first=${first.manufacturer}/${first.model} version=${first.version} permission=${usb.hasPermission(first)}"
+            "usb[$state] $accessory usbDevices=${usb.deviceList.size} carTouchLink=${if (AutoShowTouchHub.carConnected()) "open" else "closed"}" +
+                " sys.usb.state=${sysProp("sys.usb.state")} sys.usb.config=${sysProp("sys.usb.config")}"
+        } catch (e: Exception) { "usb snapshot failed (${e.javaClass.simpleName}: ${e.message})" }
+    }
+
+    /** Samples the USB side at 0.3 s to 45 s after a link ends, until a new link opens. Shows a drop that leaves USB up. */
+    private fun startUsbWatch() {
+        val generation = ++usbWatchGeneration
+        Thread { log("USB_WATCH +0ms: ${usbSnapshot()}") }.start()
+        for (delay in longArrayOf(300, 1000, 2000, 3000, 5000, 8000, 12000, 20000, 30000, 45000)) {
+            main.postDelayed({
+                if (generation == usbWatchGeneration && !ended) Thread { log("USB_WATCH +${delay}ms: ${usbSnapshot()}") }.start()
+            }, delay)
+        }
+    }
+
     /** The phone's battery, temperature, charging and thermal state, for lining a drop up with something on the phone. */
     private fun phoneContext(): String {
         return try {
@@ -170,6 +209,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             // Closed at once (not after the usual second): the new link opens the same accessory next.
             try { existing.abort("replaced by a new connection") } catch (_: Exception) {}
         }
+        usbWatchGeneration++   // a new link ends any watch from the previous one
+        Thread { log("USB_BASELINE: ${usbSnapshot()}") }.start()
         val real = Point()
         @Suppress("DEPRECATION")
         (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealSize(real)
@@ -233,6 +274,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             // The technical reason goes to the event log; the person using the app gets a sentence.
             log("AUTOSHOW_LINK_ENDED: error=$error reason=$reason")
             log("AUTOSHOW_PHONE_CONTEXT: ${phoneContext()}")
+            startUsbWatch()
             val friendly = DisconnectReason.describe(reason, error)
             if (canStandBy()) enterStandby(friendly) else shutdown(friendly)
         }

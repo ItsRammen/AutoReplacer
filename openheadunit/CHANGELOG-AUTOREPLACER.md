@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.18
+- When the car link ends, the log now records the phone's USB state at 0.3 s up to 45 s afterwards (is the cable still connected, is the car's accessory still listed, is the car's touch connection still open), and says when the link was closed by something other than the app
 ### 0.7.17
 - A **Mark** button in the notification puts a timestamp in the log (with the phone's battery, temperature and charging state), so you can note when something happens in the car
 - Each link drop also logs the phone's battery, temperature, charging and thermal state

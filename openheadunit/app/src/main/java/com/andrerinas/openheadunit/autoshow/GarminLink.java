@@ -285,6 +285,9 @@ public final class GarminLink {
     private void fail(Exception error) {
         if (!closing.compareAndSet(false, true)) return;
         listener.log("GARMIN_ERROR: " + error.getClass().getSimpleName() + ": " + error.getMessage());
+        // This is only reached when this app had not asked to close the link.
+        if (error instanceof java.io.InterruptedIOException)
+            listener.log("GARMIN_CLOSE_SOURCE: the stream was closed by something other than this app (it had not asked to close it)");
         release(error);
     }
 
