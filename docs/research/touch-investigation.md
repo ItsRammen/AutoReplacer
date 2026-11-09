@@ -7,7 +7,7 @@
 - Our 0.2.0 grid receives phone-local input, but the user reports no response to car-screen touches.
 - User reports the same touch failure in Garmin's latest release and one preceding release.
 - Earlier video logs show VIDEO_READY with 1280×720, encoding 1, protocol fields 1/2 and ADB-related status 1; separate ADB_STATUS=1 messages also arrived.
-- The subsequently supplied full log includes 0.2.0–0.3.0. It confirms external touchscreen registration, but no external touch events reaching the grid. See LOG-ANALYSIS-2026-11-07.md for the parked run and the independent receive-watchdog failure.
+- The subsequently supplied full log includes 0.2.0–0.3.0. It confirms external touchscreen registration, but no external touch events reaching the grid. See log-analysis-2026-11-07.md for the parked run and the independent receive-watchdog failure.
 
 ## APK evidence
 
