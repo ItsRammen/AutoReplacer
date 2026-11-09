@@ -559,6 +559,16 @@
     <string name="car_touch_calibration">Touch calibration</string>
     <string name="car_touch_calibration_description">Tap crosses on the car screen so touches land right. Needs the car.</string>
     <string name="car_touch_calibration_reset">Reset touch calibration</string>
+    <string name="car_touch_recalibrate_title">Calibrate again?</string>
+    <string name="car_touch_recalibrate_message">Your current calibration stays in use until the new one is finished, and is kept so you can restore it. You need the car connected with Android Auto showing.</string>
+    <string name="car_touch_recalibrate_confirm">Calibrate</string>
+    <string name="car_touch_reset_title">Reset touch calibration?</string>
+    <string name="car_touch_reset_message">Touches on the car go back to an estimate, which may be off near the edges. You can restore this calibration afterwards.</string>
+    <string name="car_touch_reset_confirm">Reset</string>
+    <string name="car_touch_reset_done">Calibration reset. You can restore it from Settings.</string>
+    <string name="car_touch_calibration_restore">Restore previous calibration</string>
+    <string name="car_touch_calibration_restore_description">Brings back: %1$s</string>
+    <string name="car_touch_restore_done">Previous calibration restored.</string>
     <string name="car_touch_calibration_reset_description">Go back to the estimate until you calibrate again.</string>
     <string name="auto_start_self_mode">Auto start Auto+ Show mode</string>
     <string name="auto_start_self_mode_description">Automatically start Auto+ Show mode when the application is opened.</string>

@@ -46,6 +46,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         const val ACTION_STOP = "com.andrerinas.openheadunit.autoshow.STOP"
         const val ACTION_SAVE_LOG = "com.andrerinas.openheadunit.autoshow.SAVE_LOG"
         const val ACTION_CALIBRATE = "com.andrerinas.openheadunit.autoshow.CALIBRATE"
+        /** How long Android Auto is kept after the car link drops. */
+        private const val STANDBY_MS = 90_000L
 
         /** True from the moment the car encoder owns the decoder until the session ends. */
         @Volatile var carSessionActive = false
@@ -74,6 +76,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var carWidth = 0
     private var carHeight = 0
     private var lastStartId = 0
+    /** True while the car link is gone but Android Auto and the encoder are kept running for a returning cable. */
+    private var standby = false
+    private val standbyTimeout = Runnable { shutdown("The car did not come back") }
     private var splash: CarSplash? = null
     private val splashLock = Any()
     private var splashOpen = false
@@ -129,10 +134,13 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             }
         }
         val earlierTouch = AutoShowState.state.value.touch
-        AutoShowState.reset(AutoShowState.Phase.CONNECTING, "Connecting to the car")
+        if (standby) {
+            // Android Auto is still running from before: only the car side has to come back.
+            AutoShowState.update { it.copy(headline = "Reconnecting to the car (Android Auto kept running)") }
+        } else AutoShowState.reset(AutoShowState.Phase.CONNECTING, "Connecting to the car")
         // A port-8051 failure was found when the service started, before this session began.
         if (earlierTouch.startsWith("Unavailable") || earlierTouch.startsWith("Blocked")) AutoShowState.update { it.copy(touch = earlierTouch) }
-        setStatus("Connecting to the car" + (blocker?.let { " · $it" } ?: ""))
+        setStatus((if (standby) "Reconnecting to the car (Android Auto kept running)" else "Connecting to the car") + (blocker?.let { " · $it" } ?: ""))
         return START_NOT_STICKY
     }
 
@@ -159,12 +167,63 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     override fun ended(reason: String, error: Boolean) {
-        main.post { shutdown(if (error) "Car link error: $reason" else "Car link closed") }
+        main.post {
+            // The technical reason goes to the event log; the person using the app gets a sentence.
+            log("AUTOSHOW_LINK_ENDED: error=$error reason=$reason")
+            val friendly = DisconnectReason.describe(reason, error)
+            if (canStandBy()) enterStandby(friendly) else shutdown(friendly)
+        }
+    }
+
+    /** Android Auto is up and its picture has been flowing, so a dropped cable is worth waiting out. */
+    private fun canStandBy(): Boolean {
+        if (ended || !projecting || aaPictureFrames.get() == 0L) return false
+        val phase = AutoShowState.state.value.phase
+        return phase == AutoShowState.Phase.RUNNING || phase == AutoShowState.Phase.STANDBY
+    }
+
+    /**
+     * The car link is gone (the cable dropped, or the car restarted its side). Android Auto's own session is
+     * the slow part to bring back, and its head unit server stops once the session ends, so keep it, and the
+     * encoder it draws into, for a while. A returning cable then only has to rebuild the car link.
+     */
+    private fun enterStandby(reason: String) {
+        if (calibrating) endCalibration("Touch calibration stopped: the car disconnected")
+        try { link?.stop(reason) } catch (_: Exception) {}
+        link = null
+        val firstTime = !standby
+        standby = true
+        if (firstTime) {
+            main.removeCallbacks(standbyTimeout)
+            main.postDelayed(standbyTimeout, STANDBY_MS)
+        }
+        log("AUTOSHOW_STANDBY: $reason Keeping Android Auto for ${STANDBY_MS / 1000} s")
+        AutoShowState.update { it.copy(phase = AutoShowState.Phase.STANDBY, picture = false) }
+        setStatus("$reason Android Auto is kept ready for ${STANDBY_MS / 1000} s: plug the cable back in.")
+    }
+
+    /** The cable is back and the car is ready for video: send it the picture Android Auto is already drawing. */
+    private fun resumeFromStandby(width: Int, height: Int, encoding: Int) {
+        if (encoding == 0 || width != pictureW || height != pictureH) {
+            log("AUTOSHOW_STANDBY_MISMATCH: car now ${width}x$height (was ${pictureW}x$pictureH), starting over")
+            shutdown("The car's picture settings changed; plug the cable in again")
+            return
+        }
+        standby = false
+        main.removeCallbacks(standbyTimeout)
+        val e = encoder
+        val l = link
+        e?.lastConfig()?.let { config -> l?.sendVideo(config) }
+        e?.requestKeyFrame()
+        AutoShowState.update { it.copy(phase = AutoShowState.Phase.RUNNING, picture = true) }
+        setStatus("Android Auto is running")
+        log("AUTOSHOW_RESUMED: the car is back, Android Auto's session was kept")
     }
 
     private fun beginProjection(width: Int, height: Int, encoding: Int) {
+        if (standby && !ended) { resumeFromStandby(width, height, encoding); return }
         if (ended || projecting) return
-        if (encoding == 0) { shutdown("The car asked for raw video, which AutoReplacer does not send"); return }
+        if (encoding == 0) { shutdown("The car asked for a picture format AutoReplacer does not support."); return }
         projecting = true
         try {
             val currentLink = link ?: return
@@ -181,10 +240,16 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                         val old = splash; splash = null
                         Thread { try { old?.stop() } catch (_: Exception) {} }.start()
                     }
-                    currentLink.sendVideo(data)
+                    // The current link, not the one from when the projection began: a cable that comes back has a new one.
+                    link?.sendVideo(data)
                 }
                 override fun log(text: String) { this@AutoShowService.log(text) }
-                override fun failed(error: Exception) { main.post { shutdown("Encoder failed: ${error.message}") } }
+                override fun failed(error: Exception) {
+                    main.post {
+                        log("AUTOSHOW_ENCODER_FAILED: ${error.javaClass.simpleName}: ${error.message}")
+                        shutdown("The phone could not encode the picture for the car. Plug in again.")
+                    }
+                }
             })
             pictureW = width; pictureH = height
             startSplash(currentLink, width, height)
@@ -213,7 +278,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             watchAndroidAuto(comp)
         } catch (e: Exception) {
             log("AUTOSHOW_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
-            shutdown("Could not start projection: ${e.message}")
+            shutdown("Could not start Android Auto on the phone (${e.javaClass.simpleName}). Plug in again.")
         }
     }
 
@@ -483,6 +548,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private fun shutdown(reason: String) {
         if (ended) return
         ended = true
+        standby = false
+        main.removeCallbacks(standbyTimeout)
         log("AUTOSHOW_SHUTDOWN: $reason")
         AutoShowState.update { it.copy(phase = AutoShowState.Phase.ENDED, headline = reason, picture = false) }
         try { link?.stop(reason) } catch (_: Exception) {}
@@ -513,7 +580,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         main.removeCallbacksAndMessages(null)
         carBluetooth?.stop(); carBluetooth = null
         link = null; encoder = null
-        projecting = false; ended = false
+        projecting = false; ended = false; standby = false
         aaPictureFrames.set(0)
         bluetoothStatus = null
         touchLogged = 0

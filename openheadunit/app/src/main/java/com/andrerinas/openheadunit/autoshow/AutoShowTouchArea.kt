@@ -49,13 +49,47 @@ object AutoShowTouchArea {
             p.getString("calAy", null)?.toDoubleOrNull() ?: return null, p.getString("calBy", null)?.toDoubleOrNull() ?: return null)
     }
 
+    /** Keeps the current calibration as "previous", so a reset or a bad new calibration can be undone. */
+    private fun rememberPrevious(context: Context) {
+        val c = calibration(context) ?: return
+        prefs(context).edit().putBoolean("hasPrevious", true)
+            .putString("prevAx", c[0].toString()).putString("prevBx", c[1].toString())
+            .putString("prevAy", c[2].toString()).putString("prevBy", c[3].toString()).apply()
+    }
+
+    fun previous(context: Context): DoubleArray? {
+        val p = prefs(context)
+        if (!p.getBoolean("hasPrevious", false)) return null
+        return doubleArrayOf(
+            p.getString("prevAx", null)?.toDoubleOrNull() ?: return null, p.getString("prevBx", null)?.toDoubleOrNull() ?: return null,
+            p.getString("prevAy", null)?.toDoubleOrNull() ?: return null, p.getString("prevBy", null)?.toDoubleOrNull() ?: return null)
+    }
+
+    fun describePrevious(context: Context): String? = previous(context)?.let {
+        String.format(java.util.Locale.US, "width %.2f%+.2f, height %.2f%+.2f", it[0], it[1], it[2], it[3])
+    }
+
+    /** Puts the previous calibration back. The one it replaces (if any) becomes the new "previous". */
+    fun restorePrevious(context: Context): Boolean {
+        val prev = previous(context) ?: return false
+        rememberPrevious(context)
+        prefs(context).edit().putBoolean("calibrated", true)
+            .putString("calAx", prev[0].toString()).putString("calBx", prev[1].toString())
+            .putString("calAy", prev[2].toString()).putString("calBy", prev[3].toString()).apply()
+        return true
+    }
+
     fun saveCalibration(context: Context, ax: Double, bx: Double, ay: Double, by: Double) {
+        rememberPrevious(context)
         prefs(context).edit().putBoolean("calibrated", true)
             .putString("calAx", ax.toString()).putString("calBx", bx.toString())
             .putString("calAy", ay.toString()).putString("calBy", by.toString()).apply()
     }
 
-    fun clearCalibration(context: Context) { prefs(context).edit().putBoolean("calibrated", false).apply() }
+    fun clearCalibration(context: Context) {
+        rememberPrevious(context)
+        prefs(context).edit().putBoolean("calibrated", false).apply()
+    }
 
     /** One line for the settings screen and the menu. */
     fun describe(context: Context): String {

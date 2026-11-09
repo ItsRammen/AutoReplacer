@@ -1043,8 +1043,20 @@ class SettingsFragment : Fragment() {
                 searchKeywords = "touch calibrate calibration car screen offset bottom top",
                 onClick = {
                     // The car shows the crosses, so a car session with Android Auto's picture must be running.
-                    requireContext().startService(Intent(requireContext(), com.andrerinas.openheadunit.autoshow.AutoShowService::class.java)
-                        .setAction(com.andrerinas.openheadunit.autoshow.AutoShowService.ACTION_CALIBRATE))
+                    val start = {
+                        requireContext().startService(Intent(requireContext(), com.andrerinas.openheadunit.autoshow.AutoShowService::class.java)
+                            .setAction(com.andrerinas.openheadunit.autoshow.AutoShowService.ACTION_CALIBRATE))
+                        Unit
+                    }
+                    if (touchArea.isCalibrated(requireContext())) {
+                        // The current calibration stays in place until the new one is complete, and is kept as "previous".
+                        MaterialAlertDialogBuilder(requireContext())
+                            .setTitle(R.string.car_touch_recalibrate_title)
+                            .setMessage(R.string.car_touch_recalibrate_message)
+                            .setPositiveButton(R.string.car_touch_recalibrate_confirm) { _, _ -> start() }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show()
+                    } else start()
                 }
             ))
             if (touchArea.isCalibrated(requireContext())) {
@@ -1053,8 +1065,29 @@ class SettingsFragment : Fragment() {
                     nameResId = R.string.car_touch_calibration_reset,
                     value = getString(R.string.car_touch_calibration_reset_description),
                     onClick = {
-                        touchArea.clearCalibration(requireContext())
-                        updateSettingsList()
+                        MaterialAlertDialogBuilder(requireContext())
+                            .setTitle(R.string.car_touch_reset_title)
+                            .setMessage(R.string.car_touch_reset_message)
+                            .setPositiveButton(R.string.car_touch_reset_confirm) { _, _ ->
+                                touchArea.clearCalibration(requireContext())
+                                updateSettingsList()
+                                Toast.makeText(requireContext(), R.string.car_touch_reset_done, Toast.LENGTH_LONG).show()
+                            }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show()
+                    }
+                ))
+            }
+            touchArea.describePrevious(requireContext())?.let { previous ->
+                items.add(SettingItem.SettingEntry(
+                    stableId = "carTouchCalibrationRestore",
+                    nameResId = R.string.car_touch_calibration_restore,
+                    value = getString(R.string.car_touch_calibration_restore_description, previous),
+                    onClick = {
+                        if (touchArea.restorePrevious(requireContext())) {
+                            updateSettingsList()
+                            Toast.makeText(requireContext(), R.string.car_touch_restore_done, Toast.LENGTH_LONG).show()
+                        }
                     }
                 ))
             }

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
  * screen can show "waiting for the car" while the service is not running at all.
  */
 object AutoShowState {
-    enum class Phase { WAITING, CONNECTING, STARTING_ANDROID_AUTO, RUNNING, ENDED }
+    enum class Phase { WAITING, CONNECTING, STARTING_ANDROID_AUTO, RUNNING, STANDBY, ENDED }
 
     data class Snapshot(
         val phase: Phase = Phase.WAITING,

@@ -26,7 +26,7 @@ object AutoShowStatusCard {
         val accessory = attachedAccessory(context) ?: return false
         val usb = context.getSystemService(Context.USB_SERVICE) as UsbManager
         return usb.hasPermission(accessory) &&
-            (snapshot.phase == AutoShowState.Phase.WAITING || snapshot.phase == AutoShowState.Phase.ENDED)
+            (snapshot.phase == AutoShowState.Phase.WAITING || snapshot.phase == AutoShowState.Phase.ENDED || snapshot.phase == AutoShowState.Phase.STANDBY)
     }
 
     /** Opens Android Auto's settings, where Developer settings (and Start head unit server) are reached. */
@@ -53,13 +53,14 @@ object AutoShowStatusCard {
     fun title(snapshot: AutoShowState.Snapshot, cableIn: Boolean): String = when (snapshot.phase) {
         AutoShowState.Phase.RUNNING -> if (snapshot.picture) "Showing on the car" else "Android Auto is starting"
         AutoShowState.Phase.CONNECTING, AutoShowState.Phase.STARTING_ANDROID_AUTO -> "Connecting"
-        AutoShowState.Phase.ENDED -> "Car disconnected"
+        AutoShowState.Phase.ENDED, AutoShowState.Phase.STANDBY -> "Car disconnected"
         AutoShowState.Phase.WAITING -> if (cableIn) "Cable detected" else "Waiting for the car"
     }
 
     fun subtitle(snapshot: AutoShowState.Snapshot, cableIn: Boolean): String = when (snapshot.phase) {
         AutoShowState.Phase.WAITING ->
             if (cableIn) "Tap Reconnect to start the car session" else "Plug the phone into the Auto+ Show cable. Nothing needs to be started here."
+        AutoShowState.Phase.STANDBY -> snapshot.headline
         AutoShowState.Phase.ENDED -> snapshot.headline + if (cableIn) "\nTap Reconnect, or unplug and plug the cable back in." else "\nPlug the cable back in to start again."
         else -> snapshot.headline
     }
