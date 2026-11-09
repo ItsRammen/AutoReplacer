@@ -85,6 +85,17 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         goForeground()
         // Claim port 8051 before the car pushes and starts its own touch helper.
         touchServer = CarTouchServer(this).also { it.start() }
+        // Phone state changes are logged with the time so they can be lined up with touch silence.
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                log("PHONE_STATE ${intent?.action?.substringAfterLast('.')} touchLines=$touchLines lastTouch=${if (lastTouchAt == 0L) "never" else "${(SystemClock.elapsedRealtime() - lastTouchAt) / 1000}s ago"}")
+            }
+        }
+        phoneStateReceiver = receiver
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
+        }
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -229,8 +240,17 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     private var touchLogged = 0
+    private var touchLines = 0L
+    private var touchesDropped = 0L
+    private var lastTouchAt = 0L
+    private var phoneStateReceiver: android.content.BroadcastReceiver? = null
 
     override fun touch(x: Int, y: Int, b: Int, carWidth: Int, carHeight: Int) {
+        val now = SystemClock.elapsedRealtime()
+        touchLines++
+        // A touch after a long gap: shows when touches stop reaching the app and when they come back.
+        if (lastTouchAt != 0L && now - lastTouchAt > 8000) log("AUTOSHOW_TOUCH_RESUMED: first touch after ${(now - lastTouchAt) / 1000} s of silence")
+        lastTouchAt = now
         val comp = App.provide(this)
         val cw = if (carWidth > 0) carWidth else this.carWidth.takeIf { it > 0 } ?: 1280
         val ch = if (carHeight > 0) carHeight else this.carHeight.takeIf { it > 0 } ?: 720
@@ -247,7 +267,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             else -> return
         }
         if (!comp.commManager.isConnected) {
-            if (touchLogged++ < 5) log("AUTOSHOW_TOUCH_DROPPED: Android Auto session not connected yet")
+            if (touchesDropped++ < 5) log("AUTOSHOW_TOUCH_DROPPED: Android Auto session not connected yet")
             return
         }
         if (b != 2 || touchLogged++ < 20) log("AUTOSHOW_TOUCH car=$x,$y/${cw}x$ch -> aa=$ax,$ay/${vw}x$vh action=$b")
@@ -328,7 +348,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 val rendered = if (d.lastFrameRenderedMs > 0) "${(SystemClock.elapsedRealtime() - d.lastFrameRenderedMs)}ms ago" else "never"
                 log("AUTOSHOW_STATS aaConnected=${comp.commManager.isConnected} aaState=${comp.commManager.connectionState.value.javaClass.simpleName}" +
                     " decoderOnCarSurface=${d.isCurrentSurface(surface)} lastDecodedFrame=$rendered" +
-                    " decoded=${d.videoWidth}x${d.videoHeight} carFrames=${link?.frames() ?: 0} aaPictureFrames=${aaPictureFrames.get()} splash=${splashOpen}")
+                    " decoded=${d.videoWidth}x${d.videoHeight} carFrames=${link?.frames() ?: 0} aaPictureFrames=${aaPictureFrames.get()} splash=${splashOpen}" +
+                    " touchLines=$touchLines touchesDropped=$touchesDropped lastTouch=${if (lastTouchAt == 0L) "never" else "${(SystemClock.elapsedRealtime() - lastTouchAt) / 1000}s ago"}")
                 ticks++
                 main.postDelayed(this, if (ticks < 12) 5000L else 30000L)
             }
@@ -387,6 +408,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         try { App.provide(this).videoDecoder.surfaceLock = null } catch (_: Exception) {}
         carBluetooth?.stop()
         touchServer?.stop()
+        phoneStateReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
         if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {}; try { splash?.stop() } catch (_: Exception) {} }
         super.onDestroy()
     }
