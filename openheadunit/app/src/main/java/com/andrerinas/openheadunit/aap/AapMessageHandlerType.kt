@@ -59,6 +59,7 @@ internal class AapMessageHandlerType(
     }
 
     private val dispatchMonitor = TransportDispatchMonitor()
+    private var autoShowMessagesLogged = 0
 
     override fun onDroppedMediaData(channel: Int) {
         // Reassembly rejection is retired at LAST or a replacement FIRST, synchronously
@@ -95,6 +96,14 @@ internal class AapMessageHandlerType(
 
         val msgType = message.type
         val flags = message.flags
+
+        // AutoReplacer car mode: what Android Auto says besides picture and sound, so a button that
+        // does nothing can be lined up with the message (or the silence) that followed the tap.
+        if (com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive &&
+            message.channel != Channel.ID_VID && !(message.isAudio && AudioMediaPayload.isMedia(msgType)) &&
+            autoShowMessagesLogged++ < 800) {
+            AppLog.i("AutoShow: AA_MSG channel=%d type=%d size=%d", message.channel, msgType, message.size)
+        }
 
         // 1. Video goes to its own worker (ID_VID). DATA credit is returned after that worker
         // processes the complete message, not after MediaCodec renders it. The queue also has
