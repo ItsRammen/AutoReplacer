@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.14
+- When the car link drops, the event log records the last 48 messages in both directions and the video traffic just before it, to show whether anything the car or the app did came right before the drop
 ### 0.7.13
 - The event log now records the phone's power and USB state changes, so a dropped link can be told apart: cable pulled, power lost, or the car resetting its USB
 ### 0.7.12

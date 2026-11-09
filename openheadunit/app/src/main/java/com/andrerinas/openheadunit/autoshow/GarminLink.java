@@ -47,6 +47,43 @@ public final class GarminLink {
     private final Semaphore videoSlots = new Semaphore(3);
     private volatile AccessoryIo io;
     private volatile boolean videoReady, initialRequestSent, maskSent;
+
+    // The last messages in both directions, so a drop can be read against what was happening just before it.
+    private final java.util.ArrayDeque<String> traffic = new java.util.ArrayDeque<>();
+    private long videoCountSec, videoBytesSec, videoMaxSec, lastReceivedAt, lastSentAt;
+
+    private void note(String text) {
+        long at = SystemClock.elapsedRealtime() - openedAt;
+        synchronized (traffic) {
+            traffic.addLast("+" + at + "ms " + text);
+            while (traffic.size() > 48) traffic.removeFirst();
+        }
+    }
+
+    /** Called once a second: folds the video buffers of that second into one entry. */
+    private void noteVideoSecond() {
+        long n, bytes, max;
+        synchronized (traffic) { n = videoCountSec; bytes = videoBytesSec; max = videoMaxSec; videoCountSec = videoBytesSec = videoMaxSec = 0; }
+        if (n > 0) note("tx video " + n + " buffers " + bytes + " bytes, largest " + max);
+    }
+
+    private void dumpTraffic(Exception error) {
+        long now = SystemClock.elapsedRealtime();
+        listener.log("GARMIN_DROP_CONTEXT: " + error.getClass().getSimpleName() + " after " + (openedAt == 0 ? 0 : now - openedAt) + " ms open; "
+                + "last receive " + (lastReceivedAt == 0 ? "never" : (now - lastReceivedAt) + " ms ago") + ", last send "
+                + (lastSentAt == 0 ? "never" : (now - lastSentAt) + " ms ago") + ", write in progress: " + activeWrite
+                + " (" + writer.activeMillis() + " ms), video buffers sent " + frames.get());
+        java.util.List<String> lines;
+        synchronized (traffic) { lines = new java.util.ArrayList<>(traffic); }
+        StringBuilder row = new StringBuilder();
+        int count = 0;
+        for (String line : lines) {
+            if (row.length() > 0) row.append(" | ");
+            row.append(line);
+            if (++count % 6 == 0) { listener.log("GARMIN_LAST_TRAFFIC: " + row); row.setLength(0); }
+        }
+        if (row.length() > 0) listener.log("GARMIN_LAST_TRAFFIC: " + row);
+    }
     private volatile long lastWrite, openedAt, readyAt, lastVideoWrite;
     private volatile String activeWrite = "none";
 
@@ -103,6 +140,7 @@ public final class GarminLink {
 
     private void tick() {
         if (closing.get()) return;
+        noteVideoSecond();
         long now = SystemClock.elapsedRealtime();
         if (lastWrite != 0 && now - lastWrite > 5000) { fail(new IOException("USB write timed out at " + activeWrite)); return; }
         if (writer.activeMillis() > 6000) { fail(new IOException("Writer stalled at " + writer.active())); return; }
@@ -121,6 +159,8 @@ public final class GarminLink {
     }
 
     private void received(Wire.Message message) throws IOException {
+        lastReceivedAt = SystemClock.elapsedRealtime();
+        note("rx " + message.service + "/" + message.type + " " + message.payload.length + "B");
         if (message.service != 2) { listener.log("GARMIN_RX_UNHANDLED service=" + message.service + " type=" + message.type); return; }
         switch (message.type) {
             case 1: {
@@ -205,6 +245,10 @@ public final class GarminLink {
                 AccessoryIo target = io;
                 if (target == null) throw new IOException("USB is not open");
                 Wire.write(target.output, service, type, data);
+                lastSentAt = SystemClock.elapsedRealtime();
+                if (service == 1 && type == 2) {
+                    synchronized (traffic) { videoCountSec++; videoBytesSec += data.length; videoMaxSec = Math.max(videoMaxSec, data.length); }
+                } else note("tx " + service + "/" + type + " " + data.length + "B");
             } finally { lastWrite = 0; activeWrite = "none"; }
         }
     }
@@ -249,6 +293,7 @@ public final class GarminLink {
     private void release(Exception error) {
         closing.set(true);
         if (!released.compareAndSet(false, true)) return;
+        if (error != null) { try { dumpTraffic(error); } catch (Exception ignored) {} }
         clock.shutdownNow(); writer.close();
         synchronized (resourceLock) { if (io != null) io.close(); }
         listener.log("GARMIN_CLOSED: video buffers=" + frames.get());
