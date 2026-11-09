@@ -29,6 +29,21 @@ object AutoShowStatusCard {
             (snapshot.phase == AutoShowState.Phase.WAITING || snapshot.phase == AutoShowState.Phase.ENDED)
     }
 
+    /** Opens Android Auto's settings, where Developer settings (and Start head unit server) are reached. */
+    fun openAndroidAutoSettings(context: Context): Boolean {
+        val intent = android.content.Intent().setClassName(
+            AutoShowReadiness.ANDROID_AUTO_PACKAGE,
+            "com.google.android.projection.gearhead.companion.settings.DefaultSettingsActivity"
+        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try { context.startActivity(intent); true } catch (_: Exception) {
+            try {
+                context.startActivity(android.content.Intent("android.settings.APPLICATION_DETAILS_SETTINGS")
+                    .setData(android.net.Uri.parse("package:" + AutoShowReadiness.ANDROID_AUTO_PACKAGE))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)); true
+            } catch (_: Exception) { false }
+        }
+    }
+
     fun reconnect(context: Context): Boolean {
         val accessory = attachedAccessory(context) ?: return false
         AutoShowService.start(context, accessory)
@@ -95,9 +110,9 @@ object AutoShowStatusCard {
         val reconnect = canReconnect(context, snapshot)
         // The only button on the card is Reconnect, and only when it can do something.
         action?.apply {
-            visibility = if (reconnect) View.VISIBLE else View.GONE
-            text = "Reconnect"
-            setOnClickListener { onReconnect() }
+            visibility = if (warning != null || reconnect) View.VISIBLE else View.GONE
+            text = if (warning != null) "Open Android Auto" else "Reconnect"
+            setOnClickListener { if (warning != null) openAndroidAutoSettings(context) else onReconnect() }
         }
         cancel?.visibility = View.GONE
         // Nothing from the original home screen that AutoReplacer has no use for: favorite apps, widgets, page dots.

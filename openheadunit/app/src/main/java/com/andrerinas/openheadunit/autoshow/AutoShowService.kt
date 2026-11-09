@@ -335,6 +335,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private fun retryAndroidAuto(comp: com.andrerinas.openheadunit.AppComponent) {
         if (androidAutoRetries >= 100) { shutdown("Android Auto did not answer"); return }
         androidAutoRetries++
+        // Once per session, best effort: Android may refuse to open it from the background, so the home card has a button too.
+        if (androidAutoRetries == 1) AutoShowStatusCard.openAndroidAutoSettings(this)
         log("AUTOSHOW_AA_RETRY: attempt $androidAutoRetries, Android Auto's head unit server did not answer or the session ended")
         val hint = "Android Auto is not answering. On the phone open Android Auto, then Developer settings, then Start head unit server."
         AutoShowState.update { it.copy(phase = AutoShowState.Phase.STARTING_ANDROID_AUTO, headline = hint, picture = false) }

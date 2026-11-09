@@ -24,6 +24,9 @@ class SelfLauncherV17_4(
 
         if (!success && !commManager.isConnected) {
             AppLog.w("SelfMode: Headunit Server (127.0.0.1:5277) is NOT running.")
+            // Car mode retries every few seconds and says what to do on the card, the notification and
+            // the car; a toast and Android Auto's settings screen on every retry would be too much.
+            if (com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive) return false
             ToastUtils.showToast(
                 services.aap,
                 "Android Auto 17.4+ detected: Please start 'Headunit Server' in Android Auto Developer Settings!",
