@@ -62,7 +62,6 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private val main = Handler(Looper.getMainLooper())
     private var link: GarminLink? = null
     private var encoder: CarEncoder? = null
-    private var touchServer: CarTouchServer? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var stateJob: Job? = null
     private var carBluetooth: CarBluetooth? = null
@@ -85,8 +84,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         super.onCreate()
         serviceRunning = true
         goForeground()
-        // Claim port 8051 before the car pushes and starts its own touch helper.
-        touchServer = CarTouchServer(this).also { it.start() }
+        // Port 8051 is held by the process-wide hub (started with the app), so the car's own touch helper cannot take it.
+        AutoShowTouchHub.attach(this)
         // Phone state changes are logged with the time so they can be lined up with touch silence.
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -130,7 +129,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         val earlierTouch = AutoShowState.state.value.touch
         AutoShowState.reset(AutoShowState.Phase.CONNECTING, "Connecting to the car")
         // A port-8051 failure was found when the service started, before this session began.
-        if (earlierTouch.startsWith("Unavailable")) AutoShowState.update { it.copy(touch = earlierTouch) }
+        if (earlierTouch.startsWith("Unavailable") || earlierTouch.startsWith("Blocked")) AutoShowState.update { it.copy(touch = earlierTouch) }
         setStatus("Connecting to the car" + (blocker?.let { " · $it" } ?: ""))
         return START_NOT_STICKY
     }
@@ -139,10 +138,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun log(text: String) {
         AppLog.i("AutoShow: %s", text)
-        if (text.startsWith("TS8051_BIND_FAILED")) {
-            AutoShowState.update { it.copy(touch = "Unavailable: restart the phone once, then reconnect") }
-            setStatus("Car touch unavailable: restart the phone once, then reconnect")
-        }
+        if (text.startsWith("TS8051_BIND_FAILED")) setStatus("Car touch is blocked by the car's old touch helper; trying to clear it. Unplug and replug if it stays blocked.")
     }
 
     override fun carBluetooth(addressOrNull: String?) {
@@ -423,7 +419,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         scope.cancel()
         try { App.provide(this).videoDecoder.surfaceLock = null } catch (_: Exception) {}
         carBluetooth?.stop()
-        touchServer?.stop()
+        AutoShowTouchHub.detach(this)
         phoneStateReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
         if (!ended) { ended = true; try { link?.stop("service destroyed") } catch (_: Exception) {}; try { encoder?.stop() } catch (_: Exception) {}; try { splash?.stop() } catch (_: Exception) {} }
         super.onDestroy()

@@ -43,6 +43,31 @@ public final class CarTouchServer {
         if (s != null) { try { s.close(); } catch (Exception ignored) {} }
     }
 
+    /**
+     * The car's own helper (UsbLinkTS) exits when it reads a line it cannot parse: its server loop
+     * catches the NumberFormatException from Integer.valueOf, returns, and the process ends with its
+     * only thread. A helper left running from an earlier plug-in therefore holds port 8051 until the
+     * phone restarts, unless something tells it to stop. This sends it one such line. If it is serving
+     * the car's connection it reads ours when that one closes (at the latest when the cable is pulled).
+     */
+    static final String HELPER_EXIT_LINE = "a=ts x=exit y=exit b=exit\n";
+
+    private boolean evictHelper() {
+        try (Socket s = new Socket()) {
+            s.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), TsProtocol.PORT), 500);
+            s.getOutputStream().write(HELPER_EXIT_LINE.getBytes(StandardCharsets.US_ASCII));
+            s.getOutputStream().flush();
+            s.setSoTimeout(1200);
+            try { while (s.getInputStream().read() >= 0) { /* the banner, then end of stream when the helper exits */ } }
+            catch (java.net.SocketTimeoutException busy) { /* serving the car's connection; it reads our line afterwards */ }
+            listener.log("TS8051_EVICT_SENT: asked the old touch helper to exit");
+            return true;
+        } catch (Exception e) {
+            listener.log("TS8051_EVICT_FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
     private void run() {
         int failures = 0;
         while (!stopped) {
@@ -57,9 +82,11 @@ public final class CarTouchServer {
                 if (stopped) return;
                 if (failures % 12 == 0)
                     listener.log("TS8051_BIND_FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage()
-                            + " (the car's own helper may hold the port: as shell, pkill -f UsbLinkTS); retrying every 5 s");
+                            + " (the car's own helper may hold the port; trying to make it exit, retrying every 5 s)");
+                // Try to clear an old helper right away, and again every minute while the port stays taken.
+                boolean evicted = failures % 12 == 0 && evictHelper();
                 failures++;
-                try { Thread.sleep(5000); } catch (InterruptedException interrupted) { return; }
+                try { Thread.sleep(evicted ? 800 : 5000); } catch (InterruptedException interrupted) { return; }
             }
         }
     }

@@ -47,6 +47,10 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         super.onCreate()
         instance = this
         registerActivityLifecycleCallbacks(this)
+        // AutoReplacer: hold the car's touch port for the life of the process, before the car's helper can.
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            try { com.andrerinas.openheadunit.autoshow.AutoShowTouchHub.ensureStarted() } catch (e: Exception) { AppLog.w("App", "Touch hub failed to start", e) }
+        }
 
         try {
             val packageReceiver = object : BroadcastReceiver() {
