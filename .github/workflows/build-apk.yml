@@ -2,11 +2,17 @@ name: Build APK
 
 # Push a tag like v0.7.17 (it must equal versionName in openheadunit/app/build.gradle.kts, with a leading "v")
 # and this builds the APK, runs the plain-Java checks, and attaches the APK to a GitHub release.
-# "Run workflow" (manual) builds and uploads the APK as a workflow artifact only.
+# "Run workflow" (manual) builds and uploads the APK as a workflow artifact. If you also give it an existing release
+# tag (for example v0.7.17), the APK is attached to that release, which is how to retry a release without re-tagging.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to attach the APK to (for example v0.7.17). Leave empty to only upload an artifact.'
+        required: false
+        default: ''
 
 permissions:
   contents: write   # to create or update the release
@@ -22,10 +28,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
+      # The runner image already has the Android SDK ($ANDROID_HOME); only the pieces this app needs are added.
       - name: Install SDK packages
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+        run: |
+          SDKMANAGER=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n1)
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -35,8 +43,11 @@ jobs:
           VERSION=$(grep -oP 'versionName = "\K[^"]+' openheadunit/app/build.gradle.kts)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "App version: $VERSION"
-          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match versionName ${VERSION}. Tag it v${VERSION}, or change versionName first."
+          TAG=""
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${{ inputs.tag }}"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ -n "$TAG" ] && [ "$TAG" != "v${VERSION}" ]; then
+            echo "::error::Tag ${TAG} does not match versionName ${VERSION}. Use v${VERSION}, or change versionName first."
             exit 1
           fi
 
@@ -104,9 +115,10 @@ jobs:
             ${{ steps.sign.outputs.apk }}.sha256
 
       - name: Attach to the GitHub release
-        if: github.ref_type == 'tag'
+        if: steps.version.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
           name: AutoReplacer ${{ steps.version.outputs.version }}
           body_path: release-notes.md
           prerelease: true
