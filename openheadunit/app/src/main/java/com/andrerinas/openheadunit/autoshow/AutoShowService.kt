@@ -371,7 +371,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         val th = AutoShowTouchArea.heightExtent(this, ch)
         if (tw != touchAreaW || th != touchAreaH) {
             touchAreaW = tw; touchAreaH = th
-            log("AUTOSHOW_TOUCH_AREA: declared ${cw}x$ch, using ${tw}x$th (largest seen ${AutoShowTouchArea.maxX(this)},${AutoShowTouchArea.maxY(this)}, chosen height ${AutoShowTouchArea.overrideHeight(this)})")
+            log("AUTOSHOW_TOUCH_AREA: declared ${cw}x$ch, using ${tw}x$th (largest seen ${AutoShowTouchArea.maxX(this)},${AutoShowTouchArea.maxY(this)}, ${if (AutoShowTouchArea.isCalibrated(this)) "calibrated" else "not calibrated"})")
         }
         // A calibration (measured from taps on a target grid) replaces the learned extent.
         val calibration = AutoShowTouchArea.calibration(this)

@@ -555,6 +555,11 @@
 
     <!-- Categories for SettingsFragment -->
     <string name="category_general">General</string>
+    <string name="category_car_touch">Car touch</string>
+    <string name="car_touch_calibration">Touch calibration</string>
+    <string name="car_touch_calibration_description">Tap crosses on the car screen so touches land right. Needs the car.</string>
+    <string name="car_touch_calibration_reset">Reset touch calibration</string>
+    <string name="car_touch_calibration_reset_description">Go back to the estimate until you calibrate again.</string>
     <string name="auto_start_self_mode">Auto start Auto+ Show mode</string>
     <string name="auto_start_self_mode_description">Automatically start Auto+ Show mode when the application is opened.</string>
     <string name="usb_auto_connect">Auto-connect USB</string>

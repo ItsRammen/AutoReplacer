@@ -1031,6 +1031,35 @@ class SettingsFragment : Fragment() {
             }
         ))
 
+        // --- Car touch (AutoReplacer) ---
+        if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+            val touchArea = com.andrerinas.openheadunit.autoshow.AutoShowTouchArea
+            items.add(SettingItem.CategoryHeader("carTouch", R.string.category_car_touch))
+            items.add(SettingItem.SettingEntry(
+                stableId = "carTouchCalibration",
+                nameResId = R.string.car_touch_calibration,
+                value = touchArea.describe(requireContext()),
+                descriptionResId = R.string.car_touch_calibration_description,
+                searchKeywords = "touch calibrate calibration car screen offset bottom top",
+                onClick = {
+                    // The car shows the crosses, so a car session with Android Auto's picture must be running.
+                    requireContext().startService(Intent(requireContext(), com.andrerinas.openheadunit.autoshow.AutoShowService::class.java)
+                        .setAction(com.andrerinas.openheadunit.autoshow.AutoShowService.ACTION_CALIBRATE))
+                }
+            ))
+            if (touchArea.isCalibrated(requireContext())) {
+                items.add(SettingItem.SettingEntry(
+                    stableId = "carTouchCalibrationReset",
+                    nameResId = R.string.car_touch_calibration_reset,
+                    value = getString(R.string.car_touch_calibration_reset_description),
+                    onClick = {
+                        touchArea.clearCalibration(requireContext())
+                        updateSettingsList()
+                    }
+                ))
+            }
+        }
+
         // --- Wireless Connection ---
         items.add(SettingItem.CategoryHeader("wirelessConnection", R.string.category_wireless))
 
