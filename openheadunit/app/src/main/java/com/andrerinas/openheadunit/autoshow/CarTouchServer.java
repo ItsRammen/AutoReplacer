@@ -92,31 +92,75 @@ public final class CarTouchServer {
     }
 
     private void handle(Socket socket) {
-        int lines = 0, touches = 0;
+        int lines = 0, touches = 0, idle = 0;
+        long bytes = 0;
+        boolean firstBytes = true;
         listener.log("TS8051_CONNECTED " + socket.getRemoteSocketAddress());
-        try (Socket sock = socket;
-             BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream(), StandardCharsets.US_ASCII))) {
+        try (Socket sock = socket) {
+            sock.setSoTimeout(30000);
+            java.io.InputStream in = sock.getInputStream();
             OutputStream out = sock.getOutputStream();
             out.write((TsProtocol.BANNER + "\n").getBytes(StandardCharsets.US_ASCII));
             out.flush();
-            String line;
-            while ((line = in.readLine()) != null) {
-                lines++;
-                TsProtocol.Command c = TsProtocol.parse(line);
-                if (c.kind == TsProtocol.Kind.INIT) {
-                    cw = c.cw; ch = c.ch;
-                    listener.log("TS8051_INIT phone=" + c.sw + "x" + c.sh + " car=" + c.cw + "x" + c.ch);
-                    listener.carSize(c.sw, c.sh, c.cw, c.ch);
-                } else if (c.kind == TsProtocol.Kind.TOUCH) {
-                    touches++;
-                    listener.touch(c.x, c.y, c.b, cw, ch);
-                } else {
-                    listener.log("TS8051_RX_UNKNOWN \"" + (line.length() > 120 ? line.substring(0, 120) : line) + "\"");
+            byte[] buffer = new byte[1024];
+            StringBuilder line = new StringBuilder();
+            while (true) {
+                int n;
+                try {
+                    n = in.read(buffer);
+                } catch (java.net.SocketTimeoutException quiet) {
+                    // Connected but silent: say so (a limited number of times), so a car that never sends is visible.
+                    if (idle++ < 20) listener.log("TS8051_IDLE: connected, nothing received for " + (idle * 30) + " s (bytes so far " + bytes + ")");
+                    continue;
+                }
+                if (n < 0) break;
+                bytes += n;
+                if (firstBytes) {
+                    firstBytes = false;
+                    listener.log("TS8051_FIRST_BYTES " + n + " bytes: " + printable(buffer, Math.min(n, 120)));
+                }
+                for (int k = 0; k < n; k++) {
+                    char c = (char) (buffer[k] & 0xff);
+                    // Either line ending ends a command: the car's framing has not been seen to vary, but it is cheap to allow.
+                    if (c == '\n' || c == '\r') {
+                        if (line.length() > 0) {
+                            lines++;
+                            if (handleLine(line.toString())) touches++;
+                            line.setLength(0);
+                        }
+                    } else if (line.length() < 512) line.append(c);
                 }
             }
         } catch (Exception e) {
             listener.log("TS8051_ERROR " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
-        listener.log("TS8051_CLOSED lines=" + lines + " touches=" + touches);
+        listener.log("TS8051_CLOSED lines=" + lines + " touches=" + touches + " bytes=" + bytes);
+    }
+
+    /** Handles one command line; true if it was a touch. */
+    private boolean handleLine(String line) {
+        TsProtocol.Command c = TsProtocol.parse(line);
+        if (c.kind == TsProtocol.Kind.INIT) {
+            cw = c.cw; ch = c.ch;
+            listener.log("TS8051_INIT phone=" + c.sw + "x" + c.sh + " car=" + c.cw + "x" + c.ch);
+            listener.carSize(c.sw, c.sh, c.cw, c.ch);
+            return false;
+        }
+        if (c.kind == TsProtocol.Kind.TOUCH) {
+            listener.touch(c.x, c.y, c.b, cw, ch);
+            return true;
+        }
+        listener.log("TS8051_RX_UNKNOWN \"" + (line.length() > 120 ? line.substring(0, 120) : line) + "\"");
+        return false;
+    }
+
+    private static String printable(byte[] data, int length) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            int v = data[i] & 0xff;
+            if (v == '\n') sb.append("\\n"); else if (v == '\r') sb.append("\\r");
+            else if (v >= 32 && v < 127) sb.append((char) v); else sb.append(String.format("<%02x>", v));
+        }
+        return sb.toString();
     }
 }

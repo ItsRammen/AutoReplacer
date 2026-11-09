@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.16
+- The touch link now records how many bytes the car sends (and the first ones), says when it has been connected but silent, and accepts either line ending, so a session with no touch can be told apart from one where the car sends something unexpected
 ### 0.7.15
 - Fixed a blank car screen after a second reconnect: the waiting picture was still tied to the previous connection
 - After Android Auto's session ends, the first reconnect waits 3 seconds (it failed at 1.5 s while Android Auto was still closing), and the message now says to stop and start the head unit server if it stays silent
