@@ -29,7 +29,7 @@ class AutoShowLauncherActivity : Activity() {
         val usb = getSystemService(USB_SERVICE) as UsbManager
         if (!usb.hasPermission(accessory)) {
             AppLog.w("AutoShowLauncher: no USB permission for the accessory yet; the system prompt should have granted it")
-            Toast.makeText(this, "Allow USB access for AutoReplacer, then reconnect the cable", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(com.andrerinas.openheadunit.R.string.as_usb_access_toast), Toast.LENGTH_LONG).show()
         }
         AutoShowService.start(this, accessory)
         finish()

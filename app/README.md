@@ -161,7 +161,7 @@ The notification's "Open grid" action opens the results page during a car screen
 
 ## Test settings and Android Auto check (0.4.0)
 
-The test options moved to **Test settings & Android Auto check**. The safety reply (default on) and the Auto+ Show screen size are saved between launches; the ADB request stays off and applies to the current session only. The same screen has **Check Android Auto connection**, the first Android Auto hook-up step: it confirms the Android Auto app, connects to its developer head unit server on 127.0.0.1:5277 and exchanges AAP version messages (`AA_*` log lines). It stops before encryption. See `docs/android-auto-plan.md` for the remaining stages and the head-unit certificate decision.
+The test options moved to **Test settings & Android Auto check**. The safety reply (default on) and the Auto+ Show screen size are saved between launches; the ADB request stays off and applies to the current session only. The same screen has **Check Android Auto connection**, the first Android Auto hook-up step: it confirms the Android Auto app, connects to its developer head unit server on 127.0.0.1:5277 and exchanges AAP version messages (`AA_*` log lines). It stops before encryption. See `docs/research/android-auto-plan.md` for the remaining stages and the head-unit certificate decision.
 
 ## Car touch in the background (0.3.8)
 
@@ -182,7 +182,7 @@ In the first 0.3.6 car run the car connected to the probe's port 8051 but sent n
 
 ## Car touch on port 8051 (0.3.6)
 
-The head unit delivers touch by pushing a helper (`usblinkts`) over ADB that listens on TCP 8051 and injects with the hidden `InputManager.getInstance()`. On Android 14+ that call throws in a bare `app_process`, so every touch is dropped (see `docs/usblinkts-helper.md`). On Android 14+ this version listens on `127.0.0.1:8051` from the moment the app starts. If it holds the port before the car starts its helper, the car's forwarded connection reaches the app instead: it sends the same `USBLINKTS v1.0` banner, logs every line, and maps `a=ts` touches onto the grid using the `a=init` car size (or the negotiated video size). Nothing is injected into other apps. INTERNET permission is added for the local socket only; the listener binds to loopback.
+The head unit delivers touch by pushing a helper (`usblinkts`) over ADB that listens on TCP 8051 and injects with the hidden `InputManager.getInstance()`. On Android 14+ that call throws in a bare `app_process`, so every touch is dropped (see `docs/research/usblinkts-helper.md`). On Android 14+ this version listens on `127.0.0.1:8051` from the moment the app starts. If it holds the port before the car starts its helper, the car's forwarded connection reaches the app instead: it sends the same `USBLINKTS v1.0` banner, logs every line, and maps `a=ts` touches onto the grid using the `a=init` car size (or the negotiated video size). Nothing is injected into other apps. INTERNET permission is added for the local socket only; the listener binds to loopback.
 
 Log lines: `TS8051_LISTENING`, `TS8051_BIND_FAILED`, `TS8051_CONNECTED`, `TS8051_INIT`, `CAR_TOUCH_8051`, `TS8051_RX_UNKNOWN`, `TS8051_CLOSED`. Order matters: stop any running car helper (`pkill -f UsbLinkTS` as shell, or restart the phone), open this app, then plug in. Not yet run on the car.
 
@@ -192,7 +192,7 @@ Log lines: `TS8051_LISTENING`, `TS8051_BIND_FAILED`, `TS8051_CONNECTED`, `TS8051
 
 ## Input attribution and ADB retry (0.3.4)
 
-Static inspection of Auto+ Show 1.3.5.1 (see `docs/auto-show-decompile-1.3.5.1.md`) found no phone-side touch receiver: the app mirrors the phone screen with MediaProjection, hard-codes HID as unsupported, and gates on developer options, USB debugging and a car-reported ADB flag. If the car injects touch over ADB, Android may attribute the events to the built-in touchscreen or to no device, so earlier "no external events" results do not rule out car touches.
+Static inspection of Auto+ Show 1.3.5.1 (see `docs/research/auto-show-decompile-1.3.5.1.md`) found no phone-side touch receiver: the app mirrors the phone screen with MediaProjection, hard-codes HID as unsupported, and gates on developer options, USB debugging and a car-reported ADB flag. If the car injects touch over ADB, Android may attribute the events to the built-in touchscreen or to no device, so earlier "no external events" results do not rule out car touches.
 
 - `WINDOW_INPUT` (formerly `WINDOW_EXTERNAL_INPUT`) now logs every motion event reaching the activity during a car session, not just those from external devices. Each carries `origin=EXTERNAL|BUILT_IN|VIRTUAL|UNKNOWN_DEVICE`; `TOUCH` records carry the same label. `BUILT_IN` cannot separate a phone tap from an injected one, so keep touching only the car and use `USER_CAR_ORIGIN_CONFIRMATION`.
 - `PHONE_DEVELOPER_OPTIONS` records `development_settings_enabled`, which the inspected Garmin client checks before its ADB step.

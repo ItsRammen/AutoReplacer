@@ -2651,7 +2651,7 @@ class HomeFragment : Fragment() {
         val bondedDevices = cands.all.map { it.device }
         if (bondedDevices.isEmpty()) {
             if (BluetoothDevicePicker.showManufacturerDevices(requireContext(), cands.inventory)) return
-            ToastUtils.showToast(requireContext(), "No paired Bluetooth devices found", Toast.LENGTH_SHORT, force = true)
+            ToastUtils.showToast(requireContext(), getString(R.string.as_no_paired_bt), Toast.LENGTH_SHORT, force = true)
             return
         }
 

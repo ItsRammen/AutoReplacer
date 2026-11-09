@@ -50,29 +50,29 @@ object AutoShowStatusCard {
         return true
     }
 
-    fun title(snapshot: AutoShowState.Snapshot, cableIn: Boolean): String = when (snapshot.phase) {
-        AutoShowState.Phase.RUNNING -> if (snapshot.picture) "Showing on the car" else "Android Auto is starting"
-        AutoShowState.Phase.CONNECTING, AutoShowState.Phase.STARTING_ANDROID_AUTO -> "Connecting"
-        AutoShowState.Phase.ENDED, AutoShowState.Phase.STANDBY -> "Car disconnected"
-        AutoShowState.Phase.WAITING -> if (cableIn) "Cable detected" else "Waiting for the car"
-    }
+    fun title(context: Context, snapshot: AutoShowState.Snapshot, cableIn: Boolean): String = context.getString(when (snapshot.phase) {
+        AutoShowState.Phase.RUNNING -> if (snapshot.picture) R.string.as_title_showing else R.string.as_title_aa_starting
+        AutoShowState.Phase.CONNECTING, AutoShowState.Phase.STARTING_ANDROID_AUTO -> R.string.as_title_connecting
+        AutoShowState.Phase.ENDED, AutoShowState.Phase.STANDBY -> R.string.as_title_disconnected
+        AutoShowState.Phase.WAITING -> if (cableIn) R.string.as_title_cable else R.string.as_title_waiting
+    })
 
-    fun subtitle(snapshot: AutoShowState.Snapshot, cableIn: Boolean): String = when (snapshot.phase) {
+    fun subtitle(context: Context, snapshot: AutoShowState.Snapshot, cableIn: Boolean): String = when (snapshot.phase) {
         AutoShowState.Phase.WAITING ->
-            if (cableIn) "Tap Reconnect to start the car session" else "Plug the phone into the Auto+ Show cable. Nothing needs to be started here."
+            context.getString(if (cableIn) R.string.as_sub_tap_reconnect else R.string.as_sub_plug_in)
         AutoShowState.Phase.STANDBY -> snapshot.headline
-        AutoShowState.Phase.ENDED -> snapshot.headline + if (cableIn) "\nTap Reconnect, or unplug and plug the cable back in." else "\nPlug the cable back in to start again."
+        AutoShowState.Phase.ENDED -> snapshot.headline + "\n" +
+            context.getString(if (cableIn) R.string.as_ended_cable_in else R.string.as_ended_cable_out)
         else -> snapshot.headline
     }
 
-    /** The warning to show first, when the server Android Auto needs is known not to be running. */
-    fun serverWarning(snapshot: AutoShowState.Snapshot): String? {
-        if (snapshot.phase == AutoShowState.Phase.RUNNING) return null
-        return if (AutoShowServerProbe.listening == false) AutoShowServerProbe.HINT else null
-    }
+    /** True when the server Android Auto needs is known not to be running, so the card should say so first. */
+    fun serverWarning(snapshot: AutoShowState.Snapshot): Boolean =
+        snapshot.phase != AutoShowState.Phase.RUNNING && AutoShowServerProbe.listening == false
 
-    fun detail(snapshot: AutoShowState.Snapshot): String =
-        "Touch: ${snapshot.touch}\nBluetooth: ${snapshot.bluetooth}"
+    fun detail(context: Context, snapshot: AutoShowState.Snapshot): String = context.getString(R.string.as_detail,
+        snapshot.touch.ifEmpty { context.getString(R.string.as_title_waiting) },
+        snapshot.bluetooth.ifEmpty { context.getString(R.string.as_bt_not_checked) })
 
     private const val WARNING_COLOR = 0xFFFFB74D.toInt()
 
@@ -89,20 +89,20 @@ object AutoShowStatusCard {
         val cableIn = attachedAccessory(context) != null
         val warning = serverWarning(snapshot)
         root.findViewById<TextView>(R.id.home_primary_kicker)?.apply {
-            text = if (warning != null) "Setup needed" else "AutoReplacer · Auto+ Show"
-            paintWarning(this, warning != null)
+            text = if (warning) context.getString(R.string.as_kicker_setup) else context.getString(R.string.as_kicker_normal, context.getString(R.string.app_name))
+            paintWarning(this, warning)
         }
         root.findViewById<TextView>(R.id.home_primary_title)?.apply {
-            text = if (warning != null) "Start Android Auto's server first" else title(snapshot, cableIn)
+            text = if (warning) context.getString(R.string.as_warning_title) else title(context, snapshot, cableIn)
             maxLines = 2
-            paintWarning(this, warning != null)
+            paintWarning(this, warning)
         }
         root.findViewById<TextView>(R.id.home_primary_subtitle)?.apply {
-            text = warning?.removePrefix(AutoShowServerProbe.HEADLINE)?.trim() ?: subtitle(snapshot, cableIn); maxLines = 5
+            text = if (warning) AutoShowServerProbe.steps(context) else subtitle(context, snapshot, cableIn); maxLines = 5
         }
         root.findViewById<TextView>(R.id.home_primary_detail)?.apply {
             visibility = if (snapshot.phase == AutoShowState.Phase.WAITING) View.GONE else View.VISIBLE
-            text = detail(snapshot); maxLines = 3; ellipsize = null
+            text = detail(context, snapshot); maxLines = 3; ellipsize = null
         }
         root.findViewById<View>(R.id.home_primary_progress)?.visibility = View.GONE
         root.findViewById<View>(R.id.home_countdown)?.visibility = View.GONE
@@ -111,9 +111,9 @@ object AutoShowStatusCard {
         val reconnect = canReconnect(context, snapshot)
         // The only button on the card is Reconnect, and only when it can do something.
         action?.apply {
-            visibility = if (warning != null || reconnect) View.VISIBLE else View.GONE
-            text = if (warning != null) "Open Android Auto" else "Reconnect"
-            setOnClickListener { if (warning != null) openAndroidAutoSettings(context) else onReconnect() }
+            visibility = if (warning || reconnect) View.VISIBLE else View.GONE
+            text = if (warning) context.getString(R.string.as_open_aa) else context.getString(R.string.as_reconnect)
+            setOnClickListener { if (warning) openAndroidAutoSettings(context) else onReconnect() }
         }
         cancel?.visibility = View.GONE
         // Nothing from the original home screen that AutoReplacer has no use for: favorite apps, widgets, page dots.
@@ -136,7 +136,7 @@ object AutoShowStatusCard {
             gravity = android.view.Gravity.CENTER
             val pad = (12 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, pad / 2)
-            contentDescription = "More"
+            contentDescription = root.context.getString(R.string.as_more)
             isClickable = true
             isFocusable = true
             val outValue = android.util.TypedValue()
@@ -151,8 +151,8 @@ object AutoShowStatusCard {
         }
         more.setOnClickListener { anchor ->
             android.widget.PopupMenu(anchor.context, anchor).apply {
-                menu.add(0, 1, 0, "Save log")
-                menu.add(0, 3, 1, "Calibrate touch on car")
+                menu.add(0, 1, 0, anchor.context.getString(R.string.as_save_log))
+                menu.add(0, 3, 1, anchor.context.getString(R.string.as_calibrate_menu))
                 setOnMenuItemClickListener { item ->
                     when (item.itemId) {
                         1 -> onSaveLog()

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Open Headunit</string>
+    <string name="app_name">AutoReplacer</string>
     <string name="menu">菜单</string>
     <string name="settings">设置</string>
     <string name="title_activity_settings">设置</string>
@@ -19,7 +19,7 @@
     <string name="no_apps_found">未找到应用</string>
     <string name="video">Android Auto</string>
     <string name="self_mode">独立模式</string>
-    <string name="title">Open Headunit</string>
+    <string name="title">AutoReplacer</string>
     <string name="remove">移除</string>
     <string name="usb">USB</string>
     <string name="wifi">WiFi</string>

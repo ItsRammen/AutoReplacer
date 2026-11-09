@@ -49,7 +49,7 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
         registerActivityLifecycleCallbacks(this)
         // AutoReplacer: hold the car's touch port for the life of the process, before the car's helper can.
         if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
-            try { com.andrerinas.openheadunit.autoshow.AutoShowTouchHub.ensureStarted() } catch (e: Exception) { AppLog.w("App", "Touch hub failed to start", e) }
+            try { com.andrerinas.openheadunit.autoshow.AutoShowTouchHub.ensureStarted(this) } catch (e: Exception) { AppLog.w("App", "Touch hub failed to start", e) }
         }
 
         try {

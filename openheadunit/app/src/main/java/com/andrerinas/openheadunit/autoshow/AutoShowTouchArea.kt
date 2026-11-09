@@ -1,5 +1,6 @@
 package com.andrerinas.openheadunit.autoshow
 
+import com.andrerinas.openheadunit.R
 import android.content.Context
 
 /**
@@ -66,7 +67,7 @@ object AutoShowTouchArea {
     }
 
     fun describePrevious(context: Context): String? = previous(context)?.let {
-        String.format(java.util.Locale.US, "width %.2f%+.2f, height %.2f%+.2f", it[0], it[1], it[2], it[3])
+        context.getString(R.string.as_touch_values, it[0], it[1], it[2], it[3])
     }
 
     /** Puts the previous calibration back. The one it replaces (if any) becomes the new "previous". */
@@ -94,9 +95,9 @@ object AutoShowTouchArea {
     /** One line for the settings screen and the menu. */
     fun describe(context: Context): String {
         calibration(context)?.let {
-            return String.format(java.util.Locale.US, "Calibrated (width %.2f%+.2f, height %.2f%+.2f)", it[0], it[1], it[2], it[3])
+            return context.getString(R.string.as_touch_calibrated, it[0], it[1], it[2], it[3])
         }
-        return "Not calibrated (estimated from your taps)"
+        return context.getString(R.string.as_touch_not_calibrated)
     }
 
     fun isCalibrated(context: Context): Boolean = calibration(context) != null

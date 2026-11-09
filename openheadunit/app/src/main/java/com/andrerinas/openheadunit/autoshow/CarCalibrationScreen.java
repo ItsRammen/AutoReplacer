@@ -19,6 +19,8 @@ public final class CarCalibrationScreen {
         int total();
         double[] target(int index);   // {x, y} as fractions of the picture
         String message();
+        String title();                // "Touch calibration", in the app's language
+        String step(int index, int total);   // "3 of 9: tap the middle of the cross", in the app's language
     }
 
     private final int width, height;
@@ -71,8 +73,8 @@ public final class CarCalibrationScreen {
                         }
                     }
                     float cx = width / 2f, cy = height * 0.30f;
-                    canvas.drawText("Touch calibration", cx, cy, title);
-                    canvas.drawText(Math.min(index + 1, total) + " of " + total + ": tap the middle of the cross", cx, cy + height * 0.06f, line);
+                    canvas.drawText(progress.title(), cx, cy, title);
+                    canvas.drawText(progress.step(Math.min(index + 1, total), total), cx, cy + height * 0.06f, line);
                     String message = progress.message();
                     if (message != null && !message.isEmpty()) canvas.drawText(message, cx, cy + height * 0.12f, line);
                 } finally {

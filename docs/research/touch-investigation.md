@@ -22,7 +22,7 @@ Both inspected main activities:
 
 This is evidence that the recent Garmin client relies on an ADB path in this setup logic. It does **not** prove that every head unit lacks AOA HID support, that an ADB status of 1 authenticates the connection, or that an older release would fix Android 16 touch.
 
-Update: 1.1.5.1 was subsequently obtained from the original APKMirror download flow and its file hash and Garmin signature verified. It has now been decompiled and compared: its initial checks also force HID-test-done/HID-unsupported, skip the HID callback with AdbOverride, and use the same service-1/type-8 ADB setup request. See docs/auto-show-version-comparison.md for the three-version comparison, evidence and remaining compatibility questions.
+Update: 1.1.5.1 was subsequently obtained from the original APKMirror download flow and its file hash and Garmin signature verified. It has now been decompiled and compared: its initial checks also force HID-test-done/HID-unsupported, skip the HID callback with AdbOverride, and use the same service-1/type-8 ADB setup request. See docs/research/auto-show-version-comparison.md for the three-version comparison, evidence and remaining compatibility questions.
 
 ## External reports
 

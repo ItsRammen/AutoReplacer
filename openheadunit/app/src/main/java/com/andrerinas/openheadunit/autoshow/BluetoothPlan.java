@@ -29,22 +29,13 @@ public final class BluetoothPlan {
         return "**:**:**:**:" + a.substring(12);
     }
 
-    public static String describe(Action action) {
-        switch (action) {
-            case NO_ADDRESS: return "The car did not give a Bluetooth address";
-            case NO_BLUETOOTH: return "This phone has no Bluetooth";
-            case NEEDS_PERMISSION: return "Allow the Nearby devices permission for car Bluetooth";
-            case TURN_ON_BLUETOOTH: return "Turn on Bluetooth for car sound";
-            case PAIR: return "Pairing with the car: confirm on the phone and the car";
-            default: return "Paired with the car; waiting for car audio";
-        }
-    }
+    public enum Audio { MEDIA_AND_CALLS, MEDIA_ONLY, CALLS_ONLY, NONE }
 
-    /** Text for the audio check once the car is paired: which profiles are connected. */
-    public static String audioStatus(boolean mediaConnected, boolean callsConnected) {
-        if (mediaConnected && callsConnected) return "Car audio connected (media and calls)";
-        if (mediaConnected) return "Car audio connected (media)";
-        if (callsConnected) return "Car connected for calls only; media audio not connected";
-        return "Paired, but the car has not connected audio. Choose the car in the phone's Bluetooth settings";
+    /** Which audio profiles of the paired car are connected. The words for each live in the string resources. */
+    public static Audio audio(boolean mediaConnected, boolean callsConnected) {
+        if (mediaConnected && callsConnected) return Audio.MEDIA_AND_CALLS;
+        if (mediaConnected) return Audio.MEDIA_ONLY;
+        if (callsConnected) return Audio.CALLS_ONLY;
+        return Audio.NONE;
     }
 }

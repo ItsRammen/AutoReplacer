@@ -19,12 +19,11 @@ object AutoShowNotification {
 
     fun build(context: Context): Notification {
         val snapshot = AutoShowState.state.value
-        val title = AutoShowStatusCard.title(snapshot, cableIn = true)
+        val title = AutoShowStatusCard.title(context, snapshot, cableIn = true)
         val details = buildString {
             append(snapshot.headline.takeIf { it.isNotBlank() && it != title } ?: "")
             if (isNotEmpty()) append('\n')
-            append("Touch: ").append(snapshot.touch).append('\n')
-            append("Bluetooth: ").append(snapshot.bluetooth)
+            append(AutoShowStatusCard.detail(context, snapshot))
         }
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(context, App.defaultChannel)
         else @Suppress("DEPRECATION") Notification.Builder(context)
@@ -37,12 +36,12 @@ object AutoShowNotification {
             .setStyle(Notification.BigTextStyle().bigText(details))
             .setContentIntent(open)
             .addAction(Notification.Action.Builder(
-                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_stat_aa), "Save log",
+                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_stat_aa), context.getString(R.string.as_save_log),
                 PendingIntent.getService(context, 1,
                     Intent(context, AutoShowService::class.java).setAction(AutoShowService.ACTION_SAVE_LOG),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)).build())
             .addAction(Notification.Action.Builder(
-                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_stat_aa), "Mark",
+                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_stat_aa), context.getString(R.string.as_mark),
                 PendingIntent.getService(context, 2,
                     Intent(context, AutoShowService::class.java).setAction(AutoShowService.ACTION_MARK),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)).build())

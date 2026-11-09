@@ -73,7 +73,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private var savedResolutionId: Int? = null
     private var projecting = false
     private var ended = false
-    private var status = "Waiting for the car"
+    private var status = ""
     private var carWidth = 0
     private var carHeight = 0
     private var lastStartId = 0
@@ -141,7 +141,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     /** Android Auto's picture has reached the car encoder at least once in this car session. */
     @Volatile private var aaEverRan = false
     private var encoderSurface: android.view.Surface? = null
-    private val standbyTimeout = Runnable { shutdown("The car did not come back") }
+    private val standbyTimeout = Runnable { shutdown(getString(R.string.as_car_no_return)) }
     private var splash: CarSplash? = null
     private val splashLock = Any()
     private var splashOpen = false
@@ -179,13 +179,13 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) { shutdown("Stopped by user"); return START_NOT_STICKY }
+        if (intent?.action == ACTION_STOP) { shutdown(getString(R.string.as_stopped_user)); return START_NOT_STICKY }
         if (intent?.action == ACTION_SAVE_LOG) { saveLog(); return START_NOT_STICKY }
         if (intent?.action == ACTION_CALIBRATE) { startCalibration(startId); return START_NOT_STICKY }
         if (intent?.action == ACTION_MARK) {
             // A timestamp the user puts in the log by hand ("the car just did something"), next to the phone's own state.
             log("USER_MARK: marked by the user; ${phoneContext()}")
-            toast("Marked in the log at " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date()))
+            toast(getString(R.string.as_marked, java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())))
             if (link == null && !projecting) stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -222,17 +222,17 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         AutoShowServerProbe.refresh { up ->
             if (!up && !ended && !projecting) {
                 log("AUTOSHOW_HEAD_UNIT_SERVER_DOWN: nothing is listening on 127.0.0.1:5277")
-                setStatus("Connecting to the car. " + AutoShowServerProbe.HINT)
+                setStatus(getString(R.string.as_connecting_with_hint, AutoShowServerProbe.hint(this)))
             }
         }
-        val earlierTouch = AutoShowState.state.value.touch
+        val earlierTouch = AutoShowState.state.value
         if (standby) {
             // Android Auto is still running from before: only the car side has to come back.
-            AutoShowState.update { it.copy(headline = "Reconnecting to the car (Android Auto kept running)") }
-        } else AutoShowState.reset(AutoShowState.Phase.CONNECTING, "Connecting to the car")
+            AutoShowState.update { it.copy(headline = getString(R.string.as_reconnecting)) }
+        } else AutoShowState.reset(AutoShowState.Phase.CONNECTING, getString(R.string.as_connecting))
         // A port-8051 failure was found when the service started, before this session began.
-        if (earlierTouch.startsWith("Unavailable") || earlierTouch.startsWith("Blocked")) AutoShowState.update { it.copy(touch = earlierTouch) }
-        setStatus((if (standby) "Reconnecting to the car (Android Auto kept running)" else "Connecting to the car") + (blocker?.let { " · $it" } ?: ""))
+        if (earlierTouch.touchState == AutoShowState.TouchState.BLOCKED) AutoShowState.update { it.copy(touch = earlierTouch.touch, touchState = AutoShowState.TouchState.BLOCKED) }
+        setStatus(getString(if (standby) R.string.as_reconnecting else R.string.as_connecting) + (blocker?.let { " · $it" } ?: ""))
         return START_NOT_STICKY
     }
 
@@ -244,11 +244,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         // The car has opened its touch link; its first touch (which sends the screen size) has not come yet.
         if (text.startsWith("TS8051_CONNECTED")) {
             AutoShowState.update {
-                if (it.touch.startsWith("Blocked") || it.touch.startsWith("Working")) it
-                else it.copy(touch = "Connected; waiting for the first touch")
+                if (it.touchState == AutoShowState.TouchState.BLOCKED || it.touchState == AutoShowState.TouchState.WORKING) it
+                else it.copy(touch = getString(R.string.as_touch_connected), touchState = AutoShowState.TouchState.CONNECTED)
             }
         }
-        if (text.startsWith("TS8051_BIND_FAILED")) setStatus("Car touch is blocked by the car's old touch helper; trying to clear it. Unplug and replug if it stays blocked.")
+        if (text.startsWith("TS8051_BIND_FAILED")) setStatus(getString(R.string.as_status_touch_blocked))
     }
 
     override fun carBluetooth(addressOrNull: String?) {
@@ -275,7 +275,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             log("AUTOSHOW_LINK_ENDED: error=$error reason=$reason")
             log("AUTOSHOW_PHONE_CONTEXT: ${phoneContext()}")
             startUsbWatch()
-            val friendly = DisconnectReason.describe(reason, error)
+            val friendly = AutoShowText.reason(this, DisconnectReason.classify(reason, error))
             if (canStandBy()) enterStandby(friendly) else shutdown(friendly)
         }
     }
@@ -294,7 +294,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
      * encoder it draws into, for a while. A returning cable then only has to rebuild the car link.
      */
     private fun enterStandby(reason: String) {
-        if (calibrating) endCalibration("Touch calibration stopped: the car disconnected")
+        if (calibrating) endCalibration(getString(R.string.as_cal_stopped_disconnected))
         try { link?.stop(reason) } catch (_: Exception) {}
         link = null
         val firstTime = !standby
@@ -306,14 +306,14 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         log("AUTOSHOW_STANDBY: $reason Keeping Android Auto for ${STANDBY_MS / 1000} s")
         // The picture flag stays as it is: Android Auto may well still be drawing, and it is cleared if its session ends.
         AutoShowState.update { it.copy(phase = AutoShowState.Phase.STANDBY) }
-        setStatus("$reason Android Auto is kept ready for ${STANDBY_MS / 1000} s: plug the cable back in.")
+        setStatus(getString(R.string.as_standby, reason, STANDBY_MS / 1000))
     }
 
     /** The cable is back and the car is ready for video: send it the picture Android Auto is already drawing. */
     private fun resumeFromStandby(width: Int, height: Int, encoding: Int) {
         if (encoding == 0 || width != pictureW || height != pictureH) {
             log("AUTOSHOW_STANDBY_MISMATCH: car now ${width}x$height (was ${pictureW}x$pictureH), starting over")
-            shutdown("The car's picture settings changed; plug the cable in again")
+            shutdown(getString(R.string.as_picture_changed))
             return
         }
         standby = false
@@ -325,13 +325,13 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             e?.lastConfig()?.let { config -> l.sendVideo(config) }
             e?.requestKeyFrame()
             AutoShowState.update { it.copy(phase = AutoShowState.Phase.RUNNING) }
-            setStatus("Android Auto is running")
+            setStatus(getString(R.string.as_aa_running))
             log("AUTOSHOW_RESUMED: the car is back and Android Auto's picture is flowing")
         } else {
             // Android Auto is still coming back (its session restarted): show the waiting picture, not black.
             startSplash(l, width, height)
             AutoShowState.update { it.copy(phase = AutoShowState.Phase.STARTING_ANDROID_AUTO) }
-            setStatus("Waiting for Android Auto to come back")
+            setStatus(getString(R.string.as_waiting_aa_back))
             log("AUTOSHOW_RESUMED: the car is back, waiting for Android Auto's picture")
         }
     }
@@ -357,7 +357,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         override fun failed(error: Exception) {
             main.post {
                 log("AUTOSHOW_ENCODER_FAILED: ${error.javaClass.simpleName}: ${error.message}")
-                shutdown("The phone could not encode the picture for the car. Plug in again.")
+                shutdown(getString(R.string.as_encode_failed))
             }
         }
     }
@@ -365,7 +365,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private fun beginProjection(width: Int, height: Int, encoding: Int) {
         if (standby && !ended) { resumeFromStandby(width, height, encoding); return }
         if (ended || projecting) return
-        if (encoding == 0) { shutdown("The car asked for a picture format AutoReplacer does not support."); return }
+        if (encoding == 0) { shutdown(getString(R.string.as_unsupported_format)); return }
         projecting = true
         try {
             val currentLink = link ?: return
@@ -394,11 +394,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 .setAction(AapService.ACTION_START_SELF_MODE)
                 .putExtra(AapService.EXTRA_NO_UI, true))
             AutoShowState.update { it.copy(phase = AutoShowState.Phase.STARTING_ANDROID_AUTO) }
-            setStatus("Starting Android Auto on the phone")
+            setStatus(getString(R.string.as_aa_starting_phone))
             watchAndroidAuto(comp)
         } catch (e: Exception) {
             log("AUTOSHOW_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
-            shutdown("Could not start Android Auto on the phone (${e.javaClass.simpleName}). Plug in again.")
+            shutdown(getString(R.string.as_aa_start_failed, e.javaClass.simpleName))
         }
     }
 
@@ -440,7 +440,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         doubleArrayOf(0.50, 0.50), doubleArrayOf(0.50, 0.08), doubleArrayOf(0.50, 0.92), doubleArrayOf(0.10, 0.50), doubleArrayOf(0.90, 0.50))
     private val measuredX = DoubleArray(calibrationTargets.size)
     private val measuredY = DoubleArray(calibrationTargets.size)
-    private val calibrationTimeout = Runnable { endCalibration("Touch calibration timed out") }
+    private val calibrationTimeout = Runnable { endCalibration(getString(R.string.as_cal_timed_out)) }
 
     private fun toast(text: String) = main.post { android.widget.Toast.makeText(applicationContext, text, android.widget.Toast.LENGTH_LONG).show() }
 
@@ -448,7 +448,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     private fun startCalibration(startId: Int) {
         val currentLink = link
         if (currentLink == null || !projecting || aaPictureFrames.get() == 0L || calibrating || pictureW == 0) {
-            toast("Start the car session and wait for the Android Auto picture first")
+            toast(getString(R.string.as_cal_need_session))
             if (link == null) stopSelf(startId)
             return
         }
@@ -463,6 +463,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                 override fun total() = calibrationTargets.size
                 override fun target(index: Int) = calibrationTargets[index]
                 override fun message() = calibrationMessage
+                override fun title() = getString(R.string.as_cal_screen_title)
+                override fun step(index: Int, total: Int) = getString(R.string.as_cal_screen_step, index, total)
             })
             calibrationScreen = screen
             calibrating = true
@@ -470,11 +472,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             main.removeCallbacks(calibrationTimeout)
             main.postDelayed(calibrationTimeout, 180000L)
             log("AUTOSHOW_CALIBRATION_START: ${calibrationTargets.size} targets on the car")
-            toast("Look at the car screen and tap the middle of each cross")
+            toast(getString(R.string.as_cal_look))
         } catch (e: Exception) {
             calibrating = false
             log("AUTOSHOW_CALIBRATION_START_FAILED: ${e.javaClass.simpleName}: ${e.message}")
-            toast("Could not start the touch calibration")
+            toast(getString(R.string.as_cal_start_failed))
         }
     }
 
@@ -502,11 +504,11 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         if (fx != null && fy != null) {
             AutoShowTouchArea.saveCalibration(this, fx[0], fx[1], fy[0], fy[1])
             log("AUTOSHOW_CALIBRATION_DONE: x measured = %.4f * picture %+.4f, y measured = %.4f * picture %+.4f".format(fx[0], fx[1], fy[0], fy[1]))
-            endCalibration("Touch calibrated: ${AutoShowTouchArea.describe(this)}")
+            endCalibration(getString(R.string.as_cal_done, AutoShowTouchArea.describe(this)))
         } else {
             log("AUTOSHOW_CALIBRATION_REFUSED: the taps did not describe a plausible screen")
             calibrationIndex = 0
-            calibrationMessage = "The taps did not look right. Start again with the first cross."
+            calibrationMessage = getString(R.string.as_cal_bad_taps)
         }
     }
 
@@ -529,8 +531,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
 
     override fun carSize(phoneWidth: Int, phoneHeight: Int, carWidth: Int, carHeight: Int) {
         this.carWidth = carWidth; this.carHeight = carHeight
-        AutoShowState.update { it.copy(touch = "Working (car screen ${carWidth}x$carHeight)") }
-        setStatus("Car touch connected")
+        AutoShowState.update { it.copy(touch = getString(R.string.as_touch_working, carWidth, carHeight), touchState = AutoShowState.TouchState.WORKING) }
+        setStatus(getString(R.string.as_status_touch_connected))
     }
 
     /**
@@ -627,7 +629,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
                         androidAutoRetries = 0
                         if (!standby) {
                             AutoShowState.update { it.copy(phase = AutoShowState.Phase.RUNNING) }
-                            setStatus("Android Auto is running")
+                            setStatus(getString(R.string.as_aa_running))
                         }
                         main.postDelayed({
                             if (!ended && comp.videoDecoder.lastFrameRenderedMs == 0L && comp.commManager.isConnected) {
@@ -650,7 +652,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
      * and keep trying, so the picture comes up as soon as the server is started.
      */
     private fun retryAndroidAuto(comp: com.andrerinas.openheadunit.AppComponent) {
-        if (androidAutoRetries >= 100) { shutdown("Android Auto did not answer"); return }
+        if (androidAutoRetries >= 100) { shutdown(getString(R.string.as_aa_no_answer)); return }
         androidAutoRetries++
         // Once per session, best effort: Android may refuse to open it from the background, so the home card has a button too.
         if (androidAutoRetries == 1 && !aaEverRan) AutoShowStatusCard.openAndroidAutoSettings(this)
@@ -658,9 +660,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         // After a session that was running, Android Auto's server is normally still there: come back quickly.
         val quick = aaEverRan && androidAutoRetries <= 3
         val hint = when {
-            quick -> "Android Auto restarted. Reconnecting."
-            aaEverRan -> "Android Auto is not answering. In Android Auto's developer settings, stop the head unit server and start it again."
-            else -> "Android Auto is not answering. On the phone open Android Auto, then Developer settings, then Start head unit server."
+            quick -> getString(R.string.as_aa_restarted)
+            aaEverRan -> getString(R.string.as_aa_not_answering_restart)
+            else -> getString(R.string.as_aa_not_answering_start)
         }
         AutoShowState.update {
             it.copy(phase = if (standby) AutoShowState.Phase.STANDBY else AutoShowState.Phase.STARTING_ANDROID_AUTO,
@@ -704,7 +706,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             if (l != null) startSplash(l, pictureW, pictureH)
         } catch (e: Exception) {
             log("AUTOSHOW_ENCODER_REBUILD_FAILED: ${e.javaClass.simpleName}: ${e.message}")
-            shutdown("The phone could not restart the picture for the car. Plug in again.")
+            shutdown(getString(R.string.as_restart_failed))
         }
     }
 

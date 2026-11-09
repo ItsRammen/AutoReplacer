@@ -9,9 +9,9 @@ import android.os.Looper
  * the server's port (127.0.0.1:5277) by trying to bind it, which does not touch the server. It is not run during a session.
  */
 object AutoShowServerProbe {
-    const val HEADLINE = "Android Auto's head unit server is not running."
-    const val HINT = HEADLINE + " On the phone open Android Auto, " +
-        "then Developer settings, then Start head unit server. Start it before plugging in."
+    fun headline(context: android.content.Context): String = context.getString(com.andrerinas.openheadunit.R.string.as_server_down_headline)
+    fun steps(context: android.content.Context): String = context.getString(com.andrerinas.openheadunit.R.string.as_server_down_steps)
+    fun hint(context: android.content.Context): String = AutoShowText.join(context, headline(context), steps(context))
 
     /** True/false after a check, null until the first one finishes. */
     @Volatile var listening: Boolean? = null

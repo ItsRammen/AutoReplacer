@@ -27,9 +27,8 @@ public final class BluetoothPlanTest {
         check(BluetoothPlan.decide(true, true, true, false, true) == BluetoothPlan.Action.TURN_ON_BLUETOOTH, "bluetooth off");
         check(BluetoothPlan.decide(true, true, true, true, false) == BluetoothPlan.Action.PAIR, "not paired yet");
         check(BluetoothPlan.decide(true, true, true, true, true) == BluetoothPlan.Action.CHECK_AUDIO, "paired");
-        check(BluetoothPlan.audioStatus(true, true).contains("media and calls") && BluetoothPlan.audioStatus(true, false).contains("(media)")
-                && BluetoothPlan.audioStatus(false, true).contains("calls only") && BluetoothPlan.audioStatus(false, false).contains("not connected audio"), "audio status wording");
-        for (BluetoothPlan.Action a : BluetoothPlan.Action.values()) check(!BluetoothPlan.describe(a).isEmpty(), "every action has text");
+        check(BluetoothPlan.audio(true, true) == BluetoothPlan.Audio.MEDIA_AND_CALLS && BluetoothPlan.audio(true, false) == BluetoothPlan.Audio.MEDIA_ONLY
+                && BluetoothPlan.audio(false, true) == BluetoothPlan.Audio.CALLS_ONLY && BluetoothPlan.audio(false, false) == BluetoothPlan.Audio.NONE, "audio profiles");
         System.out.println("BluetoothPlanTest: " + assertions + " assertions passed");
     }
 }
