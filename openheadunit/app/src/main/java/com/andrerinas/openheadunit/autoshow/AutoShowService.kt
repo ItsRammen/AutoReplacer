@@ -46,6 +46,7 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         const val ACTION_STOP = "com.andrerinas.openheadunit.autoshow.STOP"
         const val ACTION_SAVE_LOG = "com.andrerinas.openheadunit.autoshow.SAVE_LOG"
         const val ACTION_CALIBRATE = "com.andrerinas.openheadunit.autoshow.CALIBRATE"
+        const val TOUCH_LOCKED_TEXT = "Locked by the car (it reports a driving restriction). It unlocks when the car reports it is free."
         /** How long Android Auto is kept after the car link drops. */
         private const val STANDBY_MS = 90_000L
 
@@ -436,6 +437,29 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         this.carWidth = carWidth; this.carHeight = carHeight
         AutoShowState.update { it.copy(touch = "Connected (${carWidth}x$carHeight)") }
         setStatus("Car touch connected")
+    }
+
+    /**
+     * The car holds back touch for apps it has not allowed while it reports a driving restriction, and
+     * AutoReplacer does not override that: it answers "allowed" only for an unrestricted, stationary car.
+     * Say so, instead of leaving touch silently dead.
+     */
+    override fun safetyState(restricted: Int, speed: Int, unlocked: Boolean) {
+        main.post {
+            if (ended) return@post
+            val locked = restricted == 1 && !unlocked
+            val current = AutoShowState.state.value.touch
+            if (locked) {
+                if (current != TOUCH_LOCKED_TEXT) {
+                    log("AUTOSHOW_TOUCH_LOCKED_BY_CAR: the car reports a driving restriction (restricted=$restricted speed=$speed); touch stays off until it reports none")
+                    AutoShowState.update { it.copy(touch = TOUCH_LOCKED_TEXT) }
+                }
+            } else if (current == TOUCH_LOCKED_TEXT) {
+                log("AUTOSHOW_TOUCH_UNLOCKED_BY_CAR: the car reports no restriction")
+                AutoShowState.update { it.copy(touch = "Unlocked by the car; waiting for your first touch") }
+            }
+            refreshNotification()
+        }
     }
 
     private var touchLogged = 0

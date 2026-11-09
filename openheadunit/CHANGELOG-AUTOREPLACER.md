@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.8
+- When the car holds back touch because it reports a driving restriction, the app now says so (Touch: "Locked by the car") instead of looking connected but dead; touch starts by itself when the car reports it is free
 ### 0.7.7
 - Fixed a black car screen after the cable dropped and came back: Android Auto's picture now returns, with the waiting picture shown meanwhile
 - A cable that bounces twice quickly now uses the new connection instead of ignoring it

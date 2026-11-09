@@ -25,6 +25,11 @@ public final class GarminLink {
         void carBluetooth(String addressOrNull);
         /** Called on the reader thread once, when the car announces its video size. */
         void videoReady(int width, int height, int encoding);
+        /**
+         * The car's safety state: {@code restricted} is its driving-restriction flag, {@code unlocked} whether this
+         * session has answered it with "allowed" (only done when the car reports no restriction and no motion).
+         */
+        void safetyState(int restricted, int speed, boolean unlocked);
         /** Called once when the session is over. */
         void ended(String reason, boolean error);
     }
@@ -41,7 +46,7 @@ public final class GarminLink {
     private final SerialWriter writer;
     private final Semaphore videoSlots = new Semaphore(3);
     private volatile AccessoryIo io;
-    private volatile boolean videoReady, initialRequestSent;
+    private volatile boolean videoReady, initialRequestSent, maskSent;
     private volatile long lastWrite, openedAt, readyAt, lastVideoWrite;
     private volatile String activeWrite = "none";
 
@@ -131,9 +136,13 @@ public final class GarminLink {
                 if (DiagnosticPolicy.safetyMaskReplyAllowed(restricted, speed)) {
                     queue("safety mask reply", () -> {
                         send(1, 17, Wire.ints(0, 1));
+                        maskSent = true;
                         listener.log("GARMIN_SAFETY_MASK_SENT mask=0 allowed=1");
                     });
+                } else {
+                    listener.log("GARMIN_SAFETY_NOT_ANSWERED: the car reports a restriction; it is not overridden");
                 }
+                listener.safetyState(restricted, speed, maskSent || DiagnosticPolicy.safetyMaskReplyAllowed(restricted, speed));
                 break;
             }
             case 11:
