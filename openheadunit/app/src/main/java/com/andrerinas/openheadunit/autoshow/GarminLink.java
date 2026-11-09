@@ -64,7 +64,21 @@ public final class GarminLink {
 
     private void run() {
         try {
-            AccessoryIo opened = AccessoryIo.open(manager, accessory);
+            // A link that was just replaced may still hold the accessory's input stream for a moment.
+            AccessoryIo opened = null;
+            IllegalStateException busy = null;
+            for (int attempt = 0; attempt < 6 && opened == null; attempt++) {
+                try {
+                    opened = AccessoryIo.open(manager, accessory);
+                } catch (IllegalStateException e) {
+                    String text = e.getMessage();
+                    if (text == null || !text.contains("already open") || closing.get()) throw e;
+                    busy = e;
+                    listener.log("GARMIN_USB_BUSY: the previous connection still holds the accessory (attempt " + (attempt + 1) + ")");
+                    Thread.sleep(400);
+                }
+            }
+            if (opened == null) throw busy;
             synchronized (resourceLock) {
                 if (closing.get()) { opened.close(); return; }
                 io = opened;
@@ -155,6 +169,8 @@ public final class GarminLink {
 
     /** Queues one encoded video buffer for the car. Blocks briefly when the car is slow; false if the link is closed. */
     public boolean sendVideo(byte[] data) {
+        // The car announces VIDEO_READY before it wants any picture; buffers sent earlier make it reset the USB link.
+        if (!videoReady) return !closing.get();
         try {
             while (!closing.get()) {
                 if (videoSlots.tryAcquire(200, TimeUnit.MILLISECONDS)) {
@@ -199,6 +215,13 @@ public final class GarminLink {
             lastWrite = SystemClock.elapsedRealtime();
             try { io.output.write(data); } finally { lastWrite = 0; }
         }
+    }
+
+    /** Closes the streams now, without the termination message, so a new link can open the accessory straight away. */
+    public void abort(String reason) {
+        closing.set(true);
+        listener.log("GARMIN_ABORT: " + reason);
+        release();
     }
 
     public void stop(String reason) {

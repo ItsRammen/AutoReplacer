@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.11
+- Fixed reconnecting after the cable drops: picture is no longer sent to the car before it says it is ready (that made its USB reset again and again), and a replaced connection now closes before the new one opens
 ### 0.7.10
 - The notification's Touch line is now accurate: "Waiting for the car", "Connected; waiting for the first touch", then "Working", and it updates as things change (it used to say "Not connected yet" the whole time)
 ### 0.7.9

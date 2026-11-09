@@ -132,7 +132,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             // A cable that bounced gives a new accessory while the old link is dead or never got ready: use the new one.
             log("AUTOSHOW_LINK_REPLACED: a new cable connection arrived before the previous one was ready")
             link = null
-            try { existing.stop("replaced by a new connection") } catch (_: Exception) {}
+            // Closed at once (not after the usual second): the new link opens the same accessory next.
+            try { existing.abort("replaced by a new connection") } catch (_: Exception) {}
         }
         val real = Point()
         @Suppress("DEPRECATION")
