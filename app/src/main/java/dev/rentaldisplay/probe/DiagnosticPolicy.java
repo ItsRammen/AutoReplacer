@@ -8,4 +8,6 @@ final class DiagnosticPolicy {
         if ((restriction != 0 && restriction != 1) || speed != 0)
             throw new IOException("Stationary grid stopped: car reported motion or unrecognised state");
     }
+    /** Auto+ Show answers an unrestricted safety state with mask=false, allowed=true; only that case is mirrored. */
+    static boolean safetyMaskReplyAllowed(int restriction, int speed) { return restriction == 0 && speed == 0; }
 }

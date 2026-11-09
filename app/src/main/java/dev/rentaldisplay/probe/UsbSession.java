@@ -25,7 +25,8 @@ final class UsbSession {
     private final Listener listener;
     private final GridState grid;
     private final int phoneWidth, phoneHeight, phoneDpi;
-    private final boolean requestAdbSetup;
+    private final boolean requestAdbSetup, maskReply;
+    private final int advertisedWidth, advertisedHeight;
     private boolean adbDiagnosticReported;
     private final AtomicBoolean adbRepeatPending = new AtomicBoolean();
     private volatile boolean carReportsAdb;
@@ -50,10 +51,13 @@ final class UsbSession {
     private long writes;
 
     UsbSession(UsbManager manager, UsbAccessory accessory, ProbeLog log, Listener listener,
-            GridState grid, int phoneWidth, int phoneHeight, int phoneDpi, boolean requestAdbSetup) {
+            GridState grid, int phoneWidth, int phoneHeight, int phoneDpi, boolean requestAdbSetup,
+            boolean maskReply, int advertisedWidth, int advertisedHeight) {
         this.manager = manager; this.accessory = accessory; this.log = log; this.listener = listener;
         this.grid = grid; this.phoneWidth = phoneWidth; this.phoneHeight = phoneHeight; this.phoneDpi = phoneDpi;
-        this.requestAdbSetup = requestAdbSetup;
+        this.requestAdbSetup = requestAdbSetup; this.maskReply = maskReply;
+        this.advertisedWidth = advertisedWidth > 0 ? advertisedWidth : phoneWidth;
+        this.advertisedHeight = advertisedHeight > 0 ? advertisedHeight : phoneHeight;
         writer = new SerialWriter(8, this::fail);
     }
     void start() { new Thread(this::run, "usb-link-read").start(); }
@@ -79,10 +83,12 @@ final class UsbSession {
             queue("opening handshake", () -> {
                 writeRaw("USBL".getBytes(StandardCharsets.US_ASCII));
                 note("TX opening header USBL");
-                send(1, 1, Wire.ints(phoneWidth, phoneHeight, phoneDpi, 0, 1, 2, 0));
+                send(1, 1, Wire.ints(advertisedWidth, advertisedHeight, phoneDpi, 0, 1, 2, 0));
                 initialRequestSent = true;
-                note("TX session request: phoneView=" + phoneWidth + "x" + phoneHeight + " dpi=" + phoneDpi
-                        + " protocol=1.2 stage=0; no Bluetooth-name exchange");
+                note("TX session request: advertised=" + advertisedWidth + "x" + advertisedHeight + " (phoneView=" + phoneWidth + "x" + phoneHeight
+                        + ") dpi=" + phoneDpi + " protocol=1.2 stage=0; no Bluetooth-name exchange");
+                note("SESSION_OPTIONS: safetyMaskReply=" + maskReply + " garminGeometry=" + (advertisedWidth != phoneWidth || advertisedHeight != phoneHeight)
+                        + " adbRequest=" + requestAdbSetup);
                 if (requestAdbSetup) {
                     note("ADB_SETUP_REQUEST_BEGIN: user-selected; phone debugging was already enabled; authorization may still be required");
                     send(1,8,Wire.ints(1));
@@ -176,8 +182,8 @@ final class UsbSession {
                                 if (count == 1) {
                                     note("FIRST_VIDEO_BUFFER_SENT: display not visually confirmed");
                                     listener.state("Video buffers sent · check car display");
-                                    send(1, 3, Wire.ints(phoneWidth, phoneHeight, 2));
-                                    note("TX orientation report after first video buffer");
+                                    send(1, 3, Wire.ints(advertisedWidth, advertisedHeight, 2));
+                                    note("TX orientation report after first video buffer: " + advertisedWidth + "x" + advertisedHeight + " orientation=2");
                                 }
                                 if (count % 25 == 0) note("TX video buffers=" + count + " total bytes=" + bytes.get());
                             } finally { videoSlots.release(); }
@@ -204,6 +210,12 @@ final class UsbSession {
                 int restricted = state.getInt(), speed = state.getInt();
                 note("Car safety-state fields: restricted=" + restricted + ", speed=" + speed);
                 DiagnosticPolicy.requireStationary(restricted,speed);
+                if (maskReply && DiagnosticPolicy.safetyMaskReplyAllowed(restricted,speed)) {
+                    queue("safety mask reply", () -> {
+                        send(1, 17, Wire.ints(0, 1));
+                        note("SAFETY_MASK_SENT: mask=0 allowed=1 (Auto+ Show's reply to an unrestricted, stationary state)");
+                    });
+                }
                 if (restricted == 1) {
                     note("STATIONARY_RESTRICTION: generated grid continues at reported speed=0; no restriction override sent");
                     listener.state("Stationary touch grid · car restrictions active");

@@ -1,0 +1,149 @@
+# Field log analysis — 2026-11-08 (Probe 0.3.5, Samsung SM-S9480, API 36)
+
+Source: user-supplied full log, two car sessions (08:26 and 08:28 UTC) plus phone baselines. No LADB captures yet.
+
+## Established
+
+- **The car registers a USB (AOA) HID touchscreen every session.** `INPUT_DEVICE_ADDED id=31` (then `id=32`) about 50 ms after VIDEO_READY: `sources=0x1002`, `device=""`, `external=true`, `vendor=65535 product=65535`, axes X/Y/pressure. This is exactly the kernel `f_accessory` signature (no name, `HID_ANY_ID` vendor/product). It is removed when the session ends. Bluetooth is not involved for this device.
+- **It is bound to the phone display in the current landscape orientation.** Axis ranges are X 0–2338.17, Y 0–1078.5, i.e. the 2340×1080 landscape view, so coordinates would map directly without transposition.
+- **No event from that device reached the app.** No `origin=EXTERNAL` `TOUCH`/`WINDOW_INPUT` in either session; the grid recorded 0 car events in session 2.
+- **No injected events reached the app either.** The only car-phase `WINDOW_INPUT` lines (deviceId 6) are phone taps on the toolbar: 08:27:04 at (1800,125) followed by `UI_BACKGROUND_REQUESTED`, and 08:29:00 at (1594,165) followed by `TOUCH_GRID_HIDDEN` (the Logs button).
+- **ADB was exposed on the USB session.** `PHONE_USB_STATE ... accessory=true adb=true`, `adbSetting=1`, `developmentSettings=1`, car `adbStatus=1` and `ADB_STATUS=1`. Authorization is still unknown.
+- **No `CAR_HID_PROBE_REQUEST`** (type 8) arrived in either session. Safety state `restricted=0, speed=0`.
+- **Panel baseline:** the Samsung panel reports pressure exactly 1.00 with size 0.02–0.03, touch-major 2–3, precision 3.79/1.75. `ContactProfile` still classified it `PANEL_LIKE` (via size/major). Pressure alone cannot detect injection on this phone.
+
+## Not established
+
+- Whether the car was touched during the visible-grid windows (session 1: 08:26:41–08:27:04; session 2: 08:28:49–08:29:00).
+- Whether the car sends HID reports that Android drops, or registers the device and never sends reports. Hypothesis (unverified): with `adbStatus=1` the car may intend ADB injection and leave HID idle.
+- Whether the car's ADB key was authorized (no record of the prompt).
+- Cause of the session 1 `EIO` read error at 08:27:31, 26 s after backgrounding (cable/source change or car-side close).
+
+## Next run (decisive)
+
+1. During the car session, `dumpsys input > input-A.txt` and find the device with an empty name / `vendor=0xffff`; note its `/dev/input/eventN`.
+2. `getevent -lt /dev/input/eventN > getevent-A.txt &` while touching only the car with the grid visible. Events there and none in the app → Android drops or routes them; nothing there → the car is not sending HID reports.
+3. `dumpsys adb > adb-A.txt` and note whether "Allow USB debugging?" appeared; then repeat with the Advanced option.
+4. Keep the grid up for the full touch window and avoid the phone toolbar until done.
+
+## LADB capture, same day (16:23–16:36 local)
+
+- `sys.usb.config` and `sys.usb.state` = `accessory,adb`; `init.svc.adbd=running`; `sys.usb.adb.disabled=0`; `ro.adb.secure=1`; `persist.sys.usb.config=sec_charging,adb`. **ADB is exposed to the car on the USB session, and adbd requires key authorization** (a prompt or a saved "Always allow" key).
+- Everything else was denied because the commands ran as the LADB app (uid 10651), not as the ADB shell (uid 2000): `dumpsys input`/`dumpsys usb` (missing DUMP), `/data/misc/adb`, and the `getevent` directory watch. The logcat file contains only LADB's own process, plus a `Service lost ... _adb-tls-connect` line at 16:36, i.e. LADB's wireless-debugging link had dropped.
+- Next capture must start with `id` showing `uid=2000(shell)`; Wireless debugging needs the phone on Wi-Fi as a client.
+
+## adbd logcat as shell (16:40–16:42 local) — the car's ADB path, observed
+
+- adbd restarts on the USB reconfiguration (`opening control endpoint /dev/usb-ffs/adb/ep0`) and loads `/data/misc/adb/adb_keys`.
+- The car's ADB key, comment `unknown@garmin-sta1295-lawrence-lxtw19`, is already saved with **alwaysAllow = true** (7-day window). The car is authorized; no prompt is needed while that grant lasts.
+- Within ~5 s of connecting, the car runs over USB ADB:
+  1. `shell:getprop ro.build.version.sdk`
+  2. `sync:` twice (pushes files)
+  3. `shell:chmod 0777 /data/local/tmp/usblinkts_service`
+  4. `shell:chmod 0777 /data/local/tmp/usblinkts.bin`
+  5. `shell:/data/local/tmp/usblinkts_service`
+- So the head unit pushes and starts its own touch helper (`usblinkts` = USB Link touch service, by name) on the phone, running as the shell user. This is the component that should deliver car touch, and the most likely place an Android 16 incompatibility would break it.
+- Next: confirm whether `usblinkts_service` is still running, collect its log output, and copy both files from `/data/local/tmp` for static analysis.
+
+## Probe 0.3.6 run (08:56 UTC) and the car's helper session (16:41–16:46 local)
+
+- `TS8051_LISTENING` at app start; after plug-in the car's forwarded connection reached the probe (`TS8051_CONNECTED: from /127.0.0.1:47347`, 5 s after VIDEO_READY). **Port takeover works.**
+- The probe sent the `USBLINKTS v1.0` banner. The car then sent **no lines** (no `a=init`, no `a=ts`) during the ~40 s before export; the connection stayed open.
+- Same pattern with the car's own helper: connected 16:41:03, closed 16:46:25, with zero command lines logged in between (its logger writes every received line to logcat, as the home test proved).
+- Conclusion: the car opens the touch channel but does not send touch in these sessions. Something else gates it on the car side.
+- Candidate gates (from the Auto+ Show decompile): the type-17 safety-mask reply Auto+ Show sends after each car safety state (`mask=false, allowed=true` when unrestricted), the advertised phone geometry (Auto+ Show: portrait real size), and the Bluetooth/setup stages. 0.3.7 adds the first two as options. A run with the genuine Auto+ Show app while the car's helper owns port 8051 would show whether the car sends `a=init`/`a=ts` at all on this phone.
+
+## Probe 0.3.7 run (09:00 UTC) — car touch working
+
+Options: `safetyMaskReply=true garminGeometry=false adbRequest=false`.
+
+- 09:00:08.657 car safety state `restricted=0, speed=0` → `SAFETY_MASK_SENT: mask=0 allowed=1`.
+- 09:00:11.663 `TS8051_CONNECTED`; banner sent.
+- 09:00:12.148 `TS8051_INIT: phone(server)=2340x1080 car(client)=1280x720` (the car echoes the advertised phone size; touches arrive in car pixels).
+- 33 `CAR_TOUCH_8051` lines: taps on targets 1 → 4 → 9 → 12 → 6 all hit (`targets=5/5`), plus a long drag with 19 `MOVE` (`b=2`) samples. Offsets from the target centres were within about 0.07 of the screen, so the car's coordinates map directly onto the generated video.
+- The only difference from the 0.3.6 run, where the car connected but sent nothing, is the type-17 safety-mask reply. **The car withholds touch until the phone answers its safety state.** Single A/B pair; a run with the reply unticked would confirm it.
+
+### Resulting touch path
+
+Car touch → car's ADB forward → 127.0.0.1:8051 → probe (`a=init`, then `a=ts x y b` in car pixels; b = 0 down, 1 up, 2 move). No injection, overlay or window is involved. Requirements: USB debugging on, the car's ADB key authorized, the app listening before the car starts its helper, and the safety-mask reply sent after the car's unrestricted, stationary safety state.
+
+## AutoReplacer 0.5.6 car run (20:00 local)
+
+From the app's saved log:
+
+- Bluetooth worked: `CAR_BLUETOOTH ... plan=CHECK_AUDIO`, `CAR_BLUETOOTH_AUDIO media=true calls=true`.
+- Garmin link and encoder started every time (`GARMIN_VIDEO_READY`, `CAR_ENCODER`, `AUTOSHOW_PROJECTION`, safety reply sent) but `carFrames=0`: the car encoder never received a picture, hence the blank car screen.
+- Android Auto: Self mode found AA 17.9 and its head-unit server answered (version 1.7, TLS complete in under 100 ms) in two of three attempts (the first attempt got no VERSION_RESPONSE, probably because AA had only just been launched). Then nothing: `AapTransport.startReading` was only logged once a projection view appeared, 15 s later. Open Headunit starts the message loop from its projection screen, so headless mode never started it. The car link's 15 s "no first video buffer" watchdog then ended the session.
+- Android Auto was also told `NegotiatedResolution 720x1280`, `Margins 129x0` (phone portrait geometry).
+- Opening the app made MainActivity and `AapProjectionActivity` open and close each other thousands of times per second.
+- `TS8051_BIND_FAILED` in every session: the car's old touch helper still holds port 8051 (restart the phone).
+
+## AutoReplacer 0.6.0 car run (2026-11-09 10:29)
+
+- First full success: waiting picture, Android Auto picture (`AUTOSHOW_FIRST_FRAME` 18 s after plug-in, after two retries because the head unit server was down), car touch connected (`TS8051_CONNECTED`, `TS8051_INIT phone=2340x1080 car=1280x720`), taps and drags delivered.
+- Touch lines stopped at 10:30:32.8 with the socket still open (no `TS8051_CLOSED`). The log holds only this app's own lines, so it shows nothing about which app was in front. Touches did arrive before the phone was unlocked (`USER_PRESENT` at 10:30:08, touches from 10:29:51), if it was locked then.
+- Car touch y values reach about 800 while the declared car size is 720 (`car=567,761 -> aa=567,719`): the touch space looks taller than the video, so touches in the bottom strip all clamp to y=719.
+- User report after this run: with the phone locked or another app open, the Google Maps area still takes touch but the bottom row of Android Auto buttons does not; with the phone idle everything works. The bottom-left tap at 10:30:32 (`car=42,704`) is the last touch in the log; video rate went from 15 to 44 fps about 3 s later.
+
+## Touch area test (2026-11-09 10:41)
+
+30 touch-downs, all along the bottom strip: x 18..1242, y 671..795, median y 749. Declared car size 1280x720. The user reports that bottom-row buttons only respond when pressed at the very top of the icon (touch y about 691-715), while physical icon centres report y 740-795. Reading: the touch panel is taller than the 720-pixel picture (likely 1280x800) and the picture fills it, so the old clamp to y=719 put every tap on the bottom row of the bar, below the icons. The top corners were not tapped, so a top-edge offset or a letterboxed picture is not ruled out. Fix in 0.6.7: scale by the learned extent (795 -> 800) instead of clamping, with a menu override.
+
+## Replug run (2026-11-09 10:58)
+
+New process at 10:58:15 (cold start from the plug-in), service started at 10:58:18.97 and `TS8051_BIND_FAILED: EADDRINUSE` in the same millisecond, again at 10:59:18: no `TS8051_LISTENING`, no touch for the whole session. The car's helper had the port. Android Auto itself ran fine (first frame at 10:58:57). In the successful run (10:29, warm process) the bind came first. The helper (`UsbLinkServerThread.run`) exits on any exception from a line it cannot parse, which gives a way to clear a stale one without a shell.
+
+## Run of 2026-11-09 11:00-11:09
+
+- No crash. Session 1 ended with the cable pulled (`GARMIN_ERROR: read failed: EIO`, `TS8051_CLOSED lines=228 touches=227`); session 2 (replug at 11:08:31) bound the touch port at once (0.7.0 holds it from app start) but Android Auto's head unit server had stopped listening after session 1: `ECONNREFUSED` on 127.0.0.1:5277 on every retry until the cable was pulled at 11:09:19. The developer-settings server has to be started again for each car session.
+- The saved system log started at 11:00:43 and held no `AUTOSHOW_TOUCH` lines at all (the touches were earlier in the long first session), so the top-of-screen report could not be checked. Fix in 0.7.2: an app-kept event log and a guided touch calibration.
+- Car reported `GARMIN_SAFETY_STATE restricted=1 speed=0` at the start of session 2 (the 0.7.x reply is only sent for restricted=0).
+
+## Run of 2026-11-09 12:07-12:09 (0.7.3): Android Auto would not connect
+
+The app's event log (first use) shows the pattern: session 1 had no head unit server (`ECONNREFUSED`), sessions 2 and 3 had it running, TCP connected at once and `Handshake: the peer accepted the connection and then sent nothing at all` after the 10 s budget (`peer_silent`). Session 2's retry 16 s after plug-in got `phone selected 1.7` in 40 ms; session 3 was cut at the first retry. Each of these sessions began with `AutoShowServerProbe`, which connected to port 5277 and closed, and 0.5.x (no probe) connected at once. Treated as the cause: 0.7.4 checks with a bind, never a connect.
+
+## First touch calibration (2026-11-09 12:17, 0.7.2)
+
+Nine taps on the crosses: x measured = 1.0342 * picture - 0.0112, y measured = 1.2759 * picture - 0.1461 (fractions of the declared 1280x720). Raw y at the top row of crosses (picture y=58) was -24, -20 and -54, at the middle (360) 335-370, at the bottom (662) 727-749. So the car's touch height is about 1.28 times the picture and its origin sits about 107 px above the picture's first row: the touch screen's top edge corresponds to roughly picture row 82. After calibration taps at the top of the screen map to rows 64-94. Whether the car also crops the top of the picture on screen is not known.
+Bounces in the same log: 12:31:58 USB open, EIO two seconds later (cable re-enumerating).
+
+## Reconnect run (2026-11-09 13:24-13:33, 0.7.5 standby): black car screen
+
+Link dropped at 13:32:10.7 (EIO); Android Auto's own session closed 0.6 s later (`AapRead: Connection closed (EOF)`), before the USB detach intent. Standby resumed the car link three times, each with only the stored SPS/PPS buffer (`GARMIN_CLOSED: video buffers=1`) and `Video output made no progress for 15 seconds`. After Android Auto reconnected its decoder rendered (`lastDecodedFrame` a few ms ago) but `aaPictureFrames` stayed at 13436: `GraphicBufferSource: Dropping frame that's going backward in time`. At 13:33:24 a new accessory attach arrived while a link not yet video-ready existed and was ignored (`AUTOSHOW_START_IGNORED`).
+
+## Touch withheld by the car (2026-11-09 13:37, 0.7.7)
+
+`TS8051_CONNECTED` at 13:37:51 but no `a=init`/`a=ts` line for the next minute, `touchLines=0`. First safety state of the session `restricted=1 speed=0`, never answered (the app answers only restricted=0, speed=0). Across all logs: every session whose first safety state was restricted=1 and never turned 0 had a connected touch port and zero touch lines (11:08, 13:32 x2, 13:33, 13:37); every session that got a restricted=0 reply had touch (10:29, 10:40, 12:17 after the flag changed 1->0, 13:24). A restricted=1 report mid-session (13:25) did not stop touch that had been unlocked earlier. What sets the flag in the car (engine, gear, parking brake) is not visible from the phone. In the same log the hidden A2DP connect call returned true and HEADSET was refused with a MODIFY_PHONE_STATE SecurityException.
+
+## Run of 2026-11-09 14:01 (0.7.8): restriction flag flips after unlock
+
+Across all logs the car has only ever reported `speed=0` (42 states with restricted=0, 25 with restricted=1): the flag changes, the speed field never does. This session: restricted=0 at 14:02:00 (answered), restricted=1 at 14:02:14, no touch line by 14:02:49. 13:24: restricted=0 answered, first touch (`a=init`) 13:24:58, restricted=1 at 13:25:26, touch kept working. So touch that started while unlocked survives a later restriction; a stream not yet started when the car re-locks appears to be refused. The reply logic (`DiagnosticPolicy`) is unchanged since the first AutoReplacer commit.
+
+## Reconnect loop (2026-11-09 14:12-14:14, 0.7.10)
+
+Per link: the two links that sent a video buffer before VIDEO_READY (14:13:35, 14:14:05) both died with `write failed: EIO` 4-5 s later; links that waited for VIDEO_READY and ended with EIO (12:10:19, 12:31:58, 13:33:24) had no early video, which is the cable bouncing on its own. From 14:14:19 each replaced link failed with `Input stream already open for this accessory!`, because `stop()` releases the streams a second later and the new link opened immediately; each failure went to standby and the next attach replaced the failed link again. Fixed in 0.7.11.
+
+## Correction: the restriction flag does not gate touch (2026-11-09 15:21-15:29, 0.7.11)
+
+Session at 15:22:13: first safety state `restricted=1 speed=0`, never answered; `TS8051_INIT` 15:22:27 and touches until at least 15:23:48 (the user drove). Across the whole log: 11 states with restricted=0, 12 with restricted=1, all speed=0, including while driving. The earlier reading (sessions that start with restricted=1 never get touch) came from sessions with no `a=init`, but those could equally be sessions without a touch, or with a touch the car did not forward for another reason; it was not proven and 0.7.8's "Locked by the car" text was wrong. Why the 13:37 session got no `a=init` in a minute is still open.
+
+## Link drops and the cable (2026-11-09, logs 12:07-15:41)
+
+27 car links in one afternoon. Lifetimes: clusters of rapid drops (0.2-60 s, many "never ready") followed by long stable sessions (449, 653, 873, 882, 1022 s). Errors are `read/write failed: EIO`, `write failed: ENODEV` and `read interrupted by close()` on the accessory streams, i.e. the accessory device node failing; none of them name a cause. At 15:40:14 the link died, and the phone saw `POWER_DISCONNECTED` only at 15:40:28.9, `POWER_CONNECTED` at 15:40:30.3 and `USB_ACCESSORY_DETACHED` at 15:40:30.8: the data link failed 14 s before the cable was pulled, with power still present. The user reports that turning the cable round fixed it for a long stretch. Not decidable from the phone: a marginal data contact versus the car resetting its USB function. 0.7.13 logs power and USB state to tell them apart.
+
+## Could missing traffic cause the drops? (2026-11-09, review of what is sent)
+
+Sent today: session request, device report (once, at the first video buffer), video buffers, a keepalive every second once video flows (the real app answers the car's keepalive the same way), safety reply only for restricted=0/speed=0. Not sent: screen state (1,16; the real app sends it only on screen on/off), Bluetooth/setup-stage values (the session request carries stage 0), `useAdb` (the car already reports adbStatus=1 in VIDEO_READY, which is what stops the real app re-sending it), a replay of the device report after an orientation change. In every log the car sent only types we handle (VIDEO_READY, keepalive answer, HID test, safety state, ADB status): no `GARMIN_RX_UNKNOWN` or `GARMIN_RX_UNHANDLED` line anywhere. Drop times are irregular (0.2 s to 1022 s, no fixed period and no fixed delay after an unanswered safety state), which does not look like a missed protocol timeout. 0.7.14 records the traffic before each drop to check.
+
+## Drop at 17:03:56 and the stuck reconnect (2026-11-09, 0.7.14, first `GARMIN_DROP_CONTEXT`)
+
+- The link had run 707 s. `GARMIN_DROP_CONTEXT`: last receive 500 s earlier (the car sends almost nothing during a session: only rx 2/1, 2/11, 2/9 at the start, and it does not answer the per-second keepalive tx 1/5), last send 165 ms before, no write in progress, video 21011 buffers. Video before the drop was steady (about 30 buffers and 250-430 kB per second, largest 126 kB), so nothing the phone sent stood out.
+- Phone side at the drop: `USB_STATE accessory=true connected=true configured=false` at 17:03:57.325, then the accessory detached, USB_STATE cycling adb-only and accessory again, `GARMIN_USB_OPEN` at 17:04:00.26. No `POWER_DISCONNECTED` (that came at 17:04:28.6 when the user pulled the cable): the car re-enumerated the phone's USB without losing power.
+- Android Auto closed its own session (`AapRead: Connection closed (EOF)`) at 17:03:57.329, 4 ms after that USB_STATE change: Android Auto ends projection when the USB state changes, so a USB reset always ends the session.
+- Reconnects: attempt at 1.6 s after the EOF got `SSL performHandshake failed` (Android Auto still closing); the next three got `the peer accepted the connection and then sent nothing at all` for the rest of the log (48 s+). At 15:39 the same silence lasted about 36 s before a handshake completed.
+- Blank car screen on the last resume (17:04:36): `startSplash` was skipped because `splash != null`, a stale waiting picture that was sending to the replaced link. Fixed in 0.7.15.
+
+## No touch for 7.5 minutes (2026-11-09 17:16-17:24, 0.7.15) and what the sessions say about the flag
+
+Latest session: `TS8051_CONNECTED` +8 s, picture from +33 s, `restricted=1` at +5 s and never changed, `touchLines=0` until the log was saved 7.5 minutes later (no `a=init`). Across 38 sessions in the logs: touch data (`a=init`) arrived in sessions that started with restricted=0 (10:29, 10:40, 13:24) and in three that started with restricted=1 (12:17 at +21 s, 15:22 at +15 s, 15:49 at +235 s with no phone-side event at that moment), so the flag does not decide it; most restricted=1 sessions show no touch data, but whether the user touched in each is unknown. Nothing phone-side separates a working restricted=1 session from a silent one (same connect time, same ADB status, same picture). Not resolved: whether the car forwards touch only in some internal state. 0.7.16 records raw bytes on the touch link to rule out data the phone does not understand.

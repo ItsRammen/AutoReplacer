@@ -19,6 +19,8 @@ public final class SessionWatchdogTest {
             try { DiagnosticPolicy.requireStationary(restriction,1); throw new AssertionError("motion accepted"); }
             catch (java.io.IOException expected) { assertions++; }
         }
+        check(DiagnosticPolicy.safetyMaskReplyAllowed(0,0),"unrestricted stationary state gets the Auto+ Show reply");
+        check(!DiagnosticPolicy.safetyMaskReplyAllowed(1,0) && !DiagnosticPolicy.safetyMaskReplyAllowed(0,5) && !DiagnosticPolicy.safetyMaskReplyAllowed(2,0),"no reply when restricted, moving or unknown");
         System.out.println("SessionWatchdogTest: "+assertions+" assertions passed");
     }
 }

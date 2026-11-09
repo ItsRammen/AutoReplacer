@@ -55,6 +55,23 @@ public final class GridStateTest {
         rejects(() -> DiagnosticPolicy.requireStationary(1,10), "restriction flag does not hide motion");
         rejects(() -> DiagnosticPolicy.requireStationary(2,0), "unknown restriction flag stops test");
         rejects(() -> DiagnosticPolicy.requireStationary(1,-1), "unknown speed stops test");
+        // Car touch keeps working while the phone grid is hidden (app in background or screen off).
+        GridState bg = new GridState(); bg.reset(true); bg.gridVisible(false);
+        check(!bg.snapshot().carLive, "car touch not live until the bridge reports it");
+        bg.touch(xs[0],ys[0],0,true,true,"phone touch while hidden");
+        check(bg.snapshot().downs == 0 && bg.snapshot().complete == 0, "phone touch ignored while grid hidden");
+        bg.carLive(true);
+        GridState.Hit carHit = bg.carTouch(xs[0],ys[0],0,true,true,"car touch while hidden");
+        check(carHit.correct && bg.snapshot().complete == 1 && bg.snapshot().downs == 1, "car touch counted while grid hidden");
+        check(bg.snapshot().carLive && !bg.snapshot().gridVisible, "snapshot reports car-live and hidden phone grid");
+        bg.carLive(false);
+        check(!bg.snapshot().carLive, "car-live cleared when the connection closes");
+        GridState ct = new GridState(); ct.reset(true); ct.gridVisible(false);
+        check(!ct.snapshot().carTest, "car-screen test off by default");
+        ct.carTest(true);
+        check(ct.snapshot().carTest && !ct.snapshot().gridVisible, "car-screen test keeps the car display active without a phone grid");
+        ct.carTest(false);
+        check(!ct.snapshot().carTest, "car-screen test can end");
         System.out.println("GridStateTest: " + assertions + " assertions passed");
     }
 }

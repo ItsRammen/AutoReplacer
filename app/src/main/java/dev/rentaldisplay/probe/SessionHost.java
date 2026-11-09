@@ -16,6 +16,7 @@ final class SessionHost {
     final ProbeLog log;
     final PhoneInspection inspection;
     final StreamLifecycle lifecycle = new StreamLifecycle();
+    final CarTouchBridge carTouch;
     private final SharedPreferences preferences;
     private final CopyOnWriteArrayList<WeakReference<UsbSession.Listener>> observers = new CopyOnWriteArrayList<>();
     private volatile StreamService owner;
@@ -27,6 +28,10 @@ final class SessionHost {
         log = new ProbeLog(context);
         inspection = new PhoneInspection(context,log);
         preferences = context.getSharedPreferences("MainActivity",Context.MODE_PRIVATE);
+        carTouch = new CarTouchBridge(log, grid, this::changed);
+        // On Android 13 and older the car's own helper can inject, so leave its port alone.
+        if (android.os.Build.VERSION.SDK_INT >= 34) carTouch.start();
+        else log.add("TS8051_DISABLED: Android " + android.os.Build.VERSION.SDK_INT + " can use the car's own touch helper");
     }
     boolean active() { return lifecycle.active(); }
     UsbSession session() { return session; }

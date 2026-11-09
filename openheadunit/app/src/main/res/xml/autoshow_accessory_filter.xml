@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Auto+ Show / Garmin USB Link head units -->
+    <usb-accessory manufacturer="Garmin" model="Garmin USB Link Accessory" />
+</resources>
