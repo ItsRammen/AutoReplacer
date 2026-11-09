@@ -447,7 +447,9 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
     override fun safetyState(restricted: Int, speed: Int, unlocked: Boolean) {
         main.post {
             if (ended) return@post
-            val locked = restricted == 1 && !unlocked
+            // The car decides whether to start the touch stream when the first touch comes. If it re-locked before any
+            // touch has started, the stream may be refused even though an earlier reply unlocked it.
+            val locked = restricted == 1 && (!unlocked || touchLines == 0L)
             val current = AutoShowState.state.value.touch
             if (locked) {
                 if (current != TOUCH_LOCKED_TEXT) {

@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.9
+- The touch status also warns when the car re-locks touch before the first touch has started
 ### 0.7.8
 - When the car holds back touch because it reports a driving restriction, the app now says so (Touch: "Locked by the car") instead of looking connected but dead; touch starts by itself when the car reports it is free
 ### 0.7.7
