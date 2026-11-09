@@ -93,15 +93,52 @@ object AutoShowStatusCard {
         val action = root.findViewById<TextView>(R.id.home_primary_action)
         val cancel = root.findViewById<TextView>(R.id.home_primary_cancel)
         val reconnect = canReconnect(context, snapshot)
+        // The only button on the card is Reconnect, and only when it can do something.
         action?.apply {
-            visibility = View.VISIBLE
-            text = if (reconnect) "Reconnect" else "Save log"
-            setOnClickListener { if (reconnect) onReconnect() else onSaveLog() }
-        }
-        cancel?.apply {
             visibility = if (reconnect) View.VISIBLE else View.GONE
-            text = "Save log"
-            setOnClickListener { onSaveLog() }
+            text = "Reconnect"
+            setOnClickListener { onReconnect() }
         }
+        cancel?.visibility = View.GONE
+        // Nothing from the original home screen that AutoReplacer has no use for: favorite apps, widgets, page dots.
+        listOf(R.id.home_favorites_area, R.id.home_widgets_row, R.id.home_page_dots, R.id.apps_button)
+            .forEach { root.findViewById<View>(it)?.visibility = View.GONE }
+        addOverflow(root, onSaveLog)
+    }
+
+    private const val MORE_TAG = "autoshow_more"
+
+    /** A small ⋮ in the card's top corner; the log lives behind it. */
+    private fun addOverflow(root: View, onSaveLog: () -> Unit) {
+        val card = root.findViewById<android.widget.FrameLayout>(R.id.home_primary_card) ?: return
+        val more = card.findViewWithTag<TextView>(MORE_TAG) ?: TextView(root.context).apply {
+            tag = MORE_TAG
+            text = "\u22EE"
+            textSize = 26f
+            setTextColor(android.graphics.Color.WHITE)
+            alpha = 0.8f
+            gravity = android.view.Gravity.CENTER
+            val pad = (12 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, pad / 2)
+            contentDescription = "More"
+            isClickable = true
+            isFocusable = true
+            val outValue = android.util.TypedValue()
+            if (root.context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)) {
+                setBackgroundResource(outValue.resourceId)
+            }
+            card.addView(this, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.TOP or android.view.Gravity.END
+            ).apply { val m = (8 * resources.displayMetrics.density).toInt(); setMargins(m, m, m, m) })
+        }
+        more.setOnClickListener { anchor ->
+            android.widget.PopupMenu(anchor.context, anchor).apply {
+                menu.add("Save log")
+                setOnMenuItemClickListener { onSaveLog(); true }
+            }.show()
+        }
+        more.bringToFront()
     }
 }
