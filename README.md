@@ -339,6 +339,8 @@ cd openheadunit
 
 The earlier probe app is built with `build.py` at the repository root (see [`app/README.md`](app/README.md)).
 
+**Releases.** Pushing a tag such as `v0.7.18` (it must match `versionName`) makes GitHub build the APK, run the checks and attach the APK to a pre-release. See [`RELEASING.md`](RELEASING.md) for the steps and for setting up a stable signing key.
+
 ## Repository layout
 
 ```
