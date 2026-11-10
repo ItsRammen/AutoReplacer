@@ -2041,4 +2041,13 @@
     <string name="as_about_continues">which continues Headunit by Michael A. Reid:</string>
     <string name="as_about_changes">AutoReplacer changes the connection, video output, touch and screens for Auto+ Show; the rest is theirs. Thank you.</string>
     <string name="as_about_upstream_changelog">Open Headunit\'s own changelog</string>
+    <string name="as_dbg_card_title">Turn on USB debugging</string>
+    <string name="as_dev_card_title">Turn on Developer options</string>
+    <string name="as_dbg_card_steps">Car touch needs it. Settings > Developer options > USB debugging, then unplug and plug the cable back in.</string>
+    <string name="as_dev_card_steps">Settings > About phone > tap Build number seven times, then turn on USB debugging in Developer options.</string>
+    <string name="as_dbg_open_dev">Open Developer options</string>
+    <string name="as_dbg_open_about">Open About phone</string>
+    <string name="as_dbg_dialog_message">The car\'s unit uses USB debugging to set up touch. Without it, touching the car screen will not work. Turn it on in Developer options, then unplug and plug the cable back in.</string>
+    <string name="as_dev_dialog_message">USB debugging is inside Developer options, which stay hidden until you tap Build number seven times in Settings > About phone. The car\'s unit uses USB debugging to set up touch; without it, touching the car screen will not work.</string>
+    <string name="as_dbg_later">Later</string>
 </resources>

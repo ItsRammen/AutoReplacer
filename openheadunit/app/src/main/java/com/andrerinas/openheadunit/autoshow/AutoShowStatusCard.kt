@@ -70,6 +70,21 @@ object AutoShowStatusCard {
     fun serverWarning(snapshot: AutoShowState.Snapshot): Boolean =
         snapshot.phase != AutoShowState.Phase.RUNNING && AutoShowServerProbe.listening == false
 
+    /** What the card warns about first: the server Android Auto needs, then the phone settings touch needs. */
+    enum class Warning { NONE, SERVER, DEVELOPER_OPTIONS, USB_DEBUGGING }
+
+    fun warning(context: Context, snapshot: AutoShowState.Snapshot): Warning {
+        if (serverWarning(snapshot)) return Warning.SERVER
+        // Only while nothing is running: during a session the card has to show the picture state and why it ended.
+        if (snapshot.phase != AutoShowState.Phase.WAITING && snapshot.phase != AutoShowState.Phase.CONNECTING &&
+            snapshot.phase != AutoShowState.Phase.STARTING_ANDROID_AUTO) return Warning.NONE
+        return when (AutoShowReadiness.missing(context)) {
+            AutoShowReadiness.Setup.DEVELOPER_OPTIONS -> Warning.DEVELOPER_OPTIONS
+            AutoShowReadiness.Setup.USB_DEBUGGING -> Warning.USB_DEBUGGING
+            AutoShowReadiness.Setup.OK -> Warning.NONE
+        }
+    }
+
     fun detail(context: Context, snapshot: AutoShowState.Snapshot): String = context.getString(R.string.as_detail,
         snapshot.touch.ifEmpty { context.getString(R.string.as_title_waiting) },
         snapshot.bluetooth.ifEmpty { context.getString(R.string.as_bt_not_checked) })
@@ -87,18 +102,28 @@ object AutoShowStatusCard {
     fun apply(root: View, snapshot: AutoShowState.Snapshot, onReconnect: () -> Unit, onSaveLog: () -> Unit) {
         val context = root.context
         val cableIn = attachedAccessory(context) != null
-        val warning = serverWarning(snapshot)
+        val kind = warning(context, snapshot)
+        val warning = kind != Warning.NONE
         root.findViewById<TextView>(R.id.home_primary_kicker)?.apply {
             text = if (warning) context.getString(R.string.as_kicker_setup) else context.getString(R.string.as_kicker_normal, context.getString(R.string.app_name))
             paintWarning(this, warning)
         }
         root.findViewById<TextView>(R.id.home_primary_title)?.apply {
-            text = if (warning) context.getString(R.string.as_warning_title) else title(context, snapshot, cableIn)
+            text = if (warning) context.getString(when (kind) {
+                Warning.SERVER -> R.string.as_warning_title
+                Warning.DEVELOPER_OPTIONS -> R.string.as_dev_card_title
+                else -> R.string.as_dbg_card_title
+            }) else title(context, snapshot, cableIn)
             maxLines = 2
             paintWarning(this, warning)
         }
         root.findViewById<TextView>(R.id.home_primary_subtitle)?.apply {
-            text = if (warning) AutoShowServerProbe.steps(context) else subtitle(context, snapshot, cableIn); maxLines = 5
+            text = when (kind) {
+                Warning.SERVER -> AutoShowServerProbe.steps(context)
+                Warning.DEVELOPER_OPTIONS -> context.getString(R.string.as_dev_card_steps)
+                Warning.USB_DEBUGGING -> context.getString(R.string.as_dbg_card_steps)
+                Warning.NONE -> subtitle(context, snapshot, cableIn)
+            }; maxLines = 5
         }
         root.findViewById<TextView>(R.id.home_primary_detail)?.apply {
             visibility = if (snapshot.phase == AutoShowState.Phase.WAITING) View.GONE else View.VISIBLE
@@ -110,10 +135,27 @@ object AutoShowStatusCard {
         val cancel = root.findViewById<TextView>(R.id.home_primary_cancel)
         val reconnect = canReconnect(context, snapshot)
         // The only button on the card is Reconnect, and only when it can do something.
+        // A missing phone setting only warns: it must not take Reconnect away. The Android Auto server warning does
+        // replace it, as before (a reconnect cannot work without the server).
+        val settingsWarning = kind == Warning.DEVELOPER_OPTIONS || kind == Warning.USB_DEBUGGING
+        val showReconnect = reconnect && settingsWarning
         action?.apply {
             visibility = if (warning || reconnect) View.VISIBLE else View.GONE
-            text = if (warning) context.getString(R.string.as_open_aa) else context.getString(R.string.as_reconnect)
-            setOnClickListener { if (warning) openAndroidAutoSettings(context) else onReconnect() }
+            text = context.getString(if (showReconnect) R.string.as_reconnect else when (kind) {
+                Warning.SERVER -> R.string.as_open_aa
+                Warning.DEVELOPER_OPTIONS -> R.string.as_dbg_open_about
+                Warning.USB_DEBUGGING -> R.string.as_dbg_open_dev
+                Warning.NONE -> R.string.as_reconnect
+            })
+            setOnClickListener {
+                if (showReconnect) { onReconnect(); return@setOnClickListener }
+                when (kind) {
+                    Warning.SERVER -> openAndroidAutoSettings(context)
+                    Warning.DEVELOPER_OPTIONS -> AutoShowReadiness.openSettings(context, AutoShowReadiness.Setup.DEVELOPER_OPTIONS)
+                    Warning.USB_DEBUGGING -> AutoShowReadiness.openSettings(context, AutoShowReadiness.Setup.USB_DEBUGGING)
+                    Warning.NONE -> onReconnect()
+                }
+            }
         }
         cancel?.visibility = View.GONE
         // Nothing from the original home screen that AutoReplacer has no use for: favorite apps, widgets, page dots.
@@ -153,11 +195,18 @@ object AutoShowStatusCard {
             android.widget.PopupMenu(anchor.context, anchor).apply {
                 menu.add(0, 1, 0, anchor.context.getString(R.string.as_save_log))
                 menu.add(0, 3, 1, anchor.context.getString(R.string.as_calibrate_menu))
+                // Always reachable from here, even while the card's button is Reconnect.
+                val missing = AutoShowReadiness.missing(anchor.context)
+                if (missing != AutoShowReadiness.Setup.OK) {
+                    menu.add(0, 4, 2, anchor.context.getString(
+                        if (missing == AutoShowReadiness.Setup.DEVELOPER_OPTIONS) R.string.as_dbg_open_about else R.string.as_dbg_open_dev))
+                }
                 setOnMenuItemClickListener { item ->
                     when (item.itemId) {
                         1 -> onSaveLog()
                         3 -> anchor.context.startService(android.content.Intent(anchor.context, AutoShowService::class.java)
                             .setAction(AutoShowService.ACTION_CALIBRATE))
+                        4 -> AutoShowReadiness.openSettings(anchor.context, AutoShowReadiness.missing(anchor.context))
                     }
                     true
                 }

@@ -1,4 +1,11 @@
 ## What's new in AutoReplacer
+### 0.7.22
+- Fixed Android Auto showing on the phone after the car was gone. When the car did not come back within 90 s, the app gave up on the car but left Android Auto connected and running, for hours in one log, and opening the app then put it on the phone's screen. The session is now ended with the car, and if one is ever found left over it is ended instead of shown
+### 0.7.21
+- If Developer options or USB debugging is off, the home card now says so in amber, with a button to the right Settings screen (also under ⋮), and the last setup step asks once with the same button. Car touch needs USB debugging, and the old note at the end of setup was easy to miss. Reconnect stays available
+### 0.7.20
+- Android Auto's day/night look: before the phone has given the app a position, sunrise and sunset were worked out for a point in Israel, hours off anywhere else (about six hours in Taiwan), so the car's map could stay light after dark. The app now estimates from the phone's time zone until it has a position, and reads the phone's last known position at the start of each car session
+- The log records the day/night flag sent to Android Auto, with the mode, the sunrise and sunset used, and where the position came from
 ### 0.7.19
 - The app is now available in **Traditional Chinese (Taiwan)**, including the status card, notification, car-screen text, calibration and messages. It follows the phone's language, or choose one in Settings
 - Long messages on the car's waiting picture wrap correctly in Chinese

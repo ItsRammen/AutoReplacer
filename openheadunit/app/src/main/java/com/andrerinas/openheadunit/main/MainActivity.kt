@@ -149,6 +149,27 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /**
+     * Car mode only. Android Auto still connected while no car session exists is a leftover (the car went away and the
+     * session was not ended, which older builds did after the 90 s wait). It would otherwise be raised on the phone.
+     * Ends it and returns true so the caller does not raise it.
+     */
+    private fun endStaleCarSession(): Boolean {
+        if (!com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) return false
+        if (com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive) return false
+        if (!App.provide(this).commManager.isConnected) return false
+        AppLog.i("MainActivity: Android Auto is connected but there is no car session; ending it instead of showing it")
+        com.andrerinas.openheadunit.autoshow.AutoShowEventLog.append(this,
+            "AUTOSHOW_STALE_SESSION: Android Auto was still connected with no car; ending it")
+        try {
+            startService(Intent(this, com.andrerinas.openheadunit.aap.AapService::class.java)
+                .setAction(com.andrerinas.openheadunit.aap.AapService.ACTION_END_CAR_SESSION))
+        } catch (e: Exception) {
+            AppLog.w("MainActivity: could not end the leftover session: ${e.message}")
+        }
+        return true
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         requestedOrientation = Settings(this).screenOrientation.androidOrientation
         super.onCreate(savedInstanceState)
@@ -157,8 +178,10 @@ class MainActivity : BaseActivity() {
         logLaunchSource()
         clearBootLoopGuardIfOpenedByHand()
 
+        // In car mode a connected session with no car is a leftover: end it, do not show it on the phone.
+        val staleCarSession = endStaleCarSession()
         // If an Android Auto session is active, bring the projection activity to front
-        if (App.provide(this).commManager.isConnected && !App.isPiPActive &&
+        if (!staleCarSession && App.provide(this).commManager.isConnected && !App.isPiPActive &&
             !com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive) {
             AppLog.i("MainActivity: Active session detected in onCreate, bringing projection to front")
             bringProjectionToFront()
@@ -1324,7 +1347,7 @@ class MainActivity : BaseActivity() {
         // unit's launcher the home is the base screen and the session keeps running behind it, so
         // there the projection is opened from the main button. Without this, moving the projection
         // to the background looked like it restarted the session two seconds later.
-        if (App.provide(this).commManager.isConnected && !App.isPiPActive &&
+        if (!endStaleCarSession() && App.provide(this).commManager.isConnected && !App.isPiPActive &&
             !AapProjectionActivity.isForeground && !CarLauncherManager.isDefaultLauncher(this) &&
             !com.andrerinas.openheadunit.autoshow.AutoShowService.carSessionActive
         ) {

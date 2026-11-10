@@ -75,6 +75,9 @@ class NightMode(private val settings: Settings, val hasGPSLocation: Boolean) {
     fun getCalculationInfo(): String {
         return calculator.getCalculationInfo()
     }
+
+    /** Where Auto's sunrise and sunset position comes from, for the log (never the position itself). */
+    fun locationSource(): String = calculator.locationSource()
 }
 
 private class NightModeCalculator(private val settings: Settings) {
@@ -88,9 +91,20 @@ private class NightModeCalculator(private val settings: Settings) {
         if (settings.useFixedSunriseLocation)
             settings.fixedSunriseLatitude else settings.lastKnownLocation.latitude
 
-    private fun longitude(): Double =
-        if (settings.useFixedSunriseLocation)
-            settings.fixedSunriseLongitude else settings.lastKnownLocation.longitude
+    // With no position ever stored, the built-in default (a point in Israel) would make sunrise and sunset
+    // hours wrong anywhere else. The phone's time zone says roughly how far east or west it is.
+    private fun longitude(): Double = when {
+        settings.useFixedSunriseLocation -> settings.fixedSunriseLongitude
+        settings.hasStoredLocation -> settings.lastKnownLocation.longitude
+        else -> com.andrerinas.openheadunit.autoshow.NightLocation.longitudeForOffsetMillis(
+            java.util.TimeZone.getDefault().rawOffset.toLong())
+    }
+
+    fun locationSource(): String = when {
+        settings.useFixedSunriseLocation -> "fixed point chosen in settings"
+        settings.hasStoredLocation -> "phone location"
+        else -> "no location yet; longitude from the time zone"
+    }
 
     fun getCalculationInfo(): String {
         val time = Calendar.getInstance().time

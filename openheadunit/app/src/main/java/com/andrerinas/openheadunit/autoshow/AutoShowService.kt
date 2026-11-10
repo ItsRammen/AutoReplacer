@@ -217,6 +217,8 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
         val dpi = resources.displayMetrics.densityDpi
         val usb = getSystemService(USB_SERVICE) as UsbManager
         link = GarminLink(usb, accessory, this, maxOf(real.x, real.y), minOf(real.x, real.y), dpi).also { it.start() }
+        // Android Auto's day/night flag is worked out here, from sunrise and sunset at the phone's position.
+        AutoShowNightLocation.refresh(this) { log(it) }
         val blocker = AutoShowReadiness.carTouchBlocker(this)
         if (blocker != null) log("AUTOSHOW_READINESS: $blocker")
         AutoShowServerProbe.refresh { up ->
@@ -760,6 +762,10 @@ class AutoShowService : Service(), GarminLink.Listener, CarTouchServer.Listener 
             savedResolutionId?.let { comp.settings.resolutionId = it }
             try {
                 startService(Intent(this, AapService::class.java).setAction(AapService.ACTION_STOP_SELF_MODE))
+                // STOP_SELF_MODE does not end a session that is already connected. Without this, Android Auto kept
+                // running and decoding for hours after the car was gone, and opening the app showed it on the phone.
+                startService(Intent(this, AapService::class.java).setAction(AapService.ACTION_END_CAR_SESSION))
+                log("AUTOSHOW_AA_SESSION_ENDED: asked Android Auto's session to end")
             } catch (_: Exception) {}
         }
         // Not stopSelf(): a replug may already have queued a newer start, which must keep this service alive.

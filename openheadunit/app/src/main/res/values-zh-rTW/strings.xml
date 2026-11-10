@@ -1966,4 +1966,13 @@
     <string name="as_about_continues">承續自 Michael A. Reid 的 Headunit：</string>
     <string name="as_about_changes">AutoReplacer 修改了連線、影像輸出、觸控與畫面以支援 Auto+ Show，其餘皆為他們的成果。謝謝。</string>
     <string name="as_about_upstream_changelog">Open Headunit 自己的更新記錄</string>
+    <string name="as_dbg_card_title">開啟 USB 偵錯</string>
+    <string name="as_dev_card_title">開啟開發人員選項</string>
+    <string name="as_dbg_card_steps">車機觸控需要此功能。請前往「設定 > 開發人員選項 > USB 偵錯」開啟，然後拔除並重新插入傳輸線。</string>
+    <string name="as_dev_card_steps">請前往「設定 > 關於手機」，連續點選「版本號碼」七次，再到「開發人員選項」開啟 USB 偵錯。</string>
+    <string name="as_dbg_open_dev">開啟開發人員選項</string>
+    <string name="as_dbg_open_about">開啟關於手機</string>
+    <string name="as_dbg_dialog_message">車機會透過 USB 偵錯來設定觸控。沒有開啟的話，車機螢幕的觸控將無法使用。請在「開發人員選項」中開啟，然後拔除並重新插入傳輸線。</string>
+    <string name="as_dev_dialog_message">USB 偵錯位於「開發人員選項」中，必須先在「設定 > 關於手機」連續點選「版本號碼」七次才會顯示。車機會透過 USB 偵錯來設定觸控，沒有開啟的話，車機螢幕的觸控將無法使用。</string>
+    <string name="as_dbg_later">稍後</string>
 </resources>

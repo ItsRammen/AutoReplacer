@@ -58,6 +58,7 @@ The app is available in **English** and **Traditional Chinese (Taiwan)** (繁體
 
 | You see | What to do |
 | --- | --- |
+| Amber **Turn on USB debugging** (or **Developer options**) | Car touch needs it. Tap the button on the card to open the right Settings screen, turn it on, then replug the cable. |
 | Amber **Start Android Auto's server first** | Start the head unit server in Android Auto's developer settings, then plug in. |
 | **Android Auto is not answering** | Stop and start the head unit server again. It can stay silent for a minute or more after a session ends. |
 | The car screen is black or stuck on the waiting picture | Unplug and replug the cable. Check that the server is running. |

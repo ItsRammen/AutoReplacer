@@ -1330,6 +1330,13 @@ class AapService : Service() {
         nightModeManager = NightModeManager(this, App.provide(this).settings) { isNight ->
             AppLog.i("NightMode update: $isNight")
             commManager.send(NightModeEvent(isNight))
+            if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+                // The car sends no day/night state, so what Android Auto gets is this flag. Record it with what it came from.
+                val settings = App.provide(this).settings
+                val calc = com.andrerinas.openheadunit.utils.NightMode(settings, true)
+                com.andrerinas.openheadunit.autoshow.AutoShowEventLog.append(this,
+                    "AUTOSHOW_NIGHT_MODE: sent night=$isNight mode=${settings.nightMode} sunrise-sunset=${calc.getCalculationInfo()} location=${calc.locationSource()}")
+            }
             // Also notify local components (for AA monochrome filter)
             val intent = Intent(ACTION_NIGHT_MODE_CHANGED).apply {
                 setPackage(packageName)
@@ -3801,6 +3808,13 @@ class AapService : Service() {
                     updateMediaSessionState(false)
                 }
             }
+            ACTION_END_CAR_SESSION       -> {
+                // The car session is over (AutoShowService shut down, or the main screen found a session with no car).
+                // STOP_SELF_MODE only cancels a launch; an Android Auto session that is already connected has to be ended here.
+                // Not a user exit: nothing should read this as the person closing Android Auto.
+                AppLog.i("AapService: ending the car session's Android Auto connection (connected=${commManager.isConnected})")
+                commManager.disconnect(sendByeBye = true, isUserExit = false, honorKillOnDisconnect = false)
+            }
             ACTION_START_WIRELESS        -> {
                 startWirelessForSettings()
             }
@@ -4552,6 +4566,7 @@ class AapService : Service() {
         const val EXTRA_SELF_MODE_VPN = "self_mode_needs_dummy_vpn"
         const val ACTION_START_SELF_MODE           = "com.andrerinas.openheadunit.ACTION_START_SELF_MODE"
         const val ACTION_STOP_SELF_MODE            = "com.andrerinas.openheadunit.ACTION_STOP_SELF_MODE"
+        const val ACTION_END_CAR_SESSION           = "com.andrerinas.openheadunit.ACTION_END_CAR_SESSION"
         const val ACTION_START_WIRELESS            = "com.andrerinas.openheadunit.ACTION_START_WIRELESS"
         const val ACTION_BT_AUTO_START              = "com.andrerinas.openheadunit.ACTION_BT_AUTO_START"
         const val ACTION_START_WIRELESS_SCAN       = "com.andrerinas.openheadunit.ACTION_START_WIRELESS_SCAN"
