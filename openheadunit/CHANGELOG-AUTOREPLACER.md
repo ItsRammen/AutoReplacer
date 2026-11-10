@@ -1,4 +1,6 @@
 ## What's new in AutoReplacer
+### 0.7.22
+- Fixed Android Auto showing on the phone after the car was gone. When the car did not come back within 90 s, the app gave up on the car but left Android Auto connected and running, for hours in one log, and opening the app then put it on the phone's screen. The session is now ended with the car, and if one is ever found left over it is ended instead of shown
 ### 0.7.21
 - If Developer options or USB debugging is off, the home card now says so in amber, with a button to the right Settings screen (also under ⋮), and the last setup step asks once with the same button. Car touch needs USB debugging, and the old note at the end of setup was easy to miss. Reconnect stays available
 ### 0.7.20

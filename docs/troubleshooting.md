@@ -37,6 +37,7 @@ Lines are `MM-DD HH:MM:SS.mmm EVENT …`. The important ones:
 | `CAR_BLUETOOTH_*` | Pairing, audio connection and the hidden-connect attempts |
 | `AUTOSHOW_NIGHT_MODE: sent night=… mode=… sunrise-sunset=… location=…` | The day/night flag sent to Android Auto (the car sends none), the mode that decided it, the sunrise and sunset used, and where the position came from |
 | `AUTOSHOW_NIGHT_LOCATION` | The phone's last known position was stored at session start, or why it could not be (no permission, no position) |
+| `AUTOSHOW_AA_SESSION_ENDED`, `AUTOSHOW_STALE_SESSION` | The car session ended and Android Auto's session was ended with it, or a session left over with no car was found and ended |
 
 ## Common situations
 
