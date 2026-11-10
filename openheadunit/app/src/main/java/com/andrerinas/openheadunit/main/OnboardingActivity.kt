@@ -207,6 +207,8 @@ class OnboardingActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Back from Settings after turning USB debugging on: the summary's tick should follow.
+        if (::flipper.isInitialized && step == STEP_READY) findViewById<TextView>(R.id.onb_ready_summary).text = summaryText()
         // Reflect any changes made in deep-linked settings screens (theme, automation) or after
         // returning from a special-permission settings screen (overlay / modify system settings).
         updateThemeButtonText()
@@ -598,7 +600,10 @@ class OnboardingActivity : BaseActivity() {
             STEP_VIDEO -> videoJob?.isActive != true
             else -> true
         }
-        if (step == STEP_READY) findViewById<TextView>(R.id.onb_ready_summary).text = summaryText()
+        if (step == STEP_READY) {
+            findViewById<TextView>(R.id.onb_ready_summary).text = summaryText()
+            askForUsbDebugging()
+        } else debugPromptShown = false
         if (step == STEP_AUDIO) audioStep?.onShown() else audioStep?.onHidden()
         if (step == STEP_AUTOMATION) applyAutomationVisibility()
         if (step == STEP_LAUNCHER) updateLauncherStep()
@@ -775,6 +780,28 @@ class OnboardingActivity : BaseActivity() {
     override fun onBackPressed() {
         // Back walks the steps; from the first step it behaves like "Do it later".
         if (step > 0) goBack() else onDoItLater()
+    }
+
+    private var debugPromptShown = false
+
+    /**
+     * Car touch needs Developer options and USB debugging, and a ✗ line in the summary is easy to read past, so
+     * say it plainly once when the last step comes up, with a button to the right Settings screen.
+     */
+    private fun askForUsbDebugging() {
+        if (!com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED || debugPromptShown) return
+        val missing = com.andrerinas.openheadunit.autoshow.AutoShowReadiness.missing(this)
+        if (missing == com.andrerinas.openheadunit.autoshow.AutoShowReadiness.Setup.OK) return
+        debugPromptShown = true
+        val developerOptions = missing == com.andrerinas.openheadunit.autoshow.AutoShowReadiness.Setup.DEVELOPER_OPTIONS
+        MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
+            .setTitle(if (developerOptions) R.string.as_dev_card_title else R.string.as_dbg_card_title)
+            .setMessage(if (developerOptions) R.string.as_dev_dialog_message else R.string.as_dbg_dialog_message)
+            .setPositiveButton(if (developerOptions) R.string.as_dbg_open_about else R.string.as_dbg_open_dev) { _, _ ->
+                com.andrerinas.openheadunit.autoshow.AutoShowReadiness.openSettings(this, missing)
+            }
+            .setNegativeButton(R.string.as_dbg_later, null)
+            .show()
     }
 
     private fun finishOnboarding() {
