@@ -90,6 +90,10 @@ class Settings(private val context: Context) {
         get() = prefs.getString("bt-announce", null)
         set(value) = prefs.edit().putString("bt-announce", value).apply()
 
+    /** True once a real position has been stored. Until then [lastKnownLocation] is only a built-in default. */
+    val hasStoredLocation: Boolean
+        get() = prefs.contains("last-loc-latitude")
+
     var lastKnownLocation: Location
         get() {
             val latitudeBits = prefs.getLong("last-loc-latitude", (32.0864169).toRawBits())

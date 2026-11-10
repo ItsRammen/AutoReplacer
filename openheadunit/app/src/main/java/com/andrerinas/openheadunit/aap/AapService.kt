@@ -1330,6 +1330,13 @@ class AapService : Service() {
         nightModeManager = NightModeManager(this, App.provide(this).settings) { isNight ->
             AppLog.i("NightMode update: $isNight")
             commManager.send(NightModeEvent(isNight))
+            if (com.andrerinas.openheadunit.autoshow.AutoShowUi.ENABLED) {
+                // The car sends no day/night state, so what Android Auto gets is this flag. Record it with what it came from.
+                val settings = App.provide(this).settings
+                val calc = com.andrerinas.openheadunit.utils.NightMode(settings, true)
+                com.andrerinas.openheadunit.autoshow.AutoShowEventLog.append(this,
+                    "AUTOSHOW_NIGHT_MODE: sent night=$isNight mode=${settings.nightMode} sunrise-sunset=${calc.getCalculationInfo()} location=${calc.locationSource()}")
+            }
             // Also notify local components (for AA monochrome filter)
             val intent = Intent(ACTION_NIGHT_MODE_CHANGED).apply {
                 setPackage(packageName)
